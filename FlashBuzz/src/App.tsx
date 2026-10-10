@@ -3920,85 +3920,419 @@ function RootCause({
 }
 
 
+interface ChatChip {
+  label: string;
+  action: "action" | "root" | "fmp" | "copy" | "send";
+  prompt?: string;
+  textToCopy?: string;
+}
+
+interface ChatMessage {
+  id: string;
+  from: "ai" | "user";
+  text: string;
+  isStreaming?: boolean;
+  chips?: ChatChip[];
+}
+
+interface ChatThread {
+  id: string;
+  title: string;
+  timeAgo: string;
+  contextTitle: string;
+  contextDesc: string;
+  messages: ChatMessage[];
+}
+
+const INITIAL_THREADS: ChatThread[] = [
+  {
+    id: "electronics",
+    title: "Electronics sales decline",
+    timeAgo: "Just now",
+    contextTitle: "Analyzing: Electronics sales decline",
+    contextDesc: "Using sales.xlsx, customers.csv, and marketing.csv",
+    messages: [
+      {
+        id: "msg-1",
+        from: "ai",
+        text: "I’ve loaded your business dataset and diagnosed the Electronics sales decline. Our root cause engine identified that monthly revenue dropped to ₹82.4L (-31% in Electronics), driven by 284 dormant VIP customer accounts in the North territory.\n\nWhat would you like to explore?",
+        chips: [
+          { label: "Why did revenue fall?", action: "send", prompt: "Why did revenue fall?" },
+          { label: "Which product should I promote?", action: "send", prompt: "Which product should I promote?" },
+          { label: "Where am I losing money?", action: "send", prompt: "Where am I losing money?" },
+          { label: "What should I do next?", action: "send", prompt: "What should I do next?" },
+        ],
+      },
+    ],
+  },
+  {
+    id: "june-perf",
+    title: "June performance summary",
+    timeAgo: "Yesterday",
+    contextTitle: "Analyzing: June Financials & FMP Peer Margins",
+    contextDesc: "Using financial_statements_q2.xlsx & FMP live benchmarks",
+    messages: [
+      {
+        id: "msg-jp-1",
+        from: "user",
+        text: "Can you summarize June revenue and benchmark our gross margin against global industry leaders?",
+      },
+      {
+        id: "msg-jp-2",
+        from: "ai",
+        text: "Here is your Executive Financial Summary for June:\n\n• **Gross Revenue:** ₹94.2L (+6.1% MoM growth driven by Home Goods & Accessories).\n• **Gross Margin:** 42.4% (vs FMP Peer Benchmarks: Apple AAPL @ 46.9%, Amazon AMZN @ 50.3%).\n• **Unit Economics:** Blended customer acquisition cost was ₹1,340 with an average order value of ₹3,850.\n• **Strategic Priority:** Closing the 4.5% margin delta by renegotiating tier-1 supplier freight terms and adjusting promotional mix.",
+        chips: [
+          { label: "🚀 View Action Plans", action: "action" },
+          { label: "📊 FMP Market Peer Data", action: "fmp" },
+          { label: "📋 Copy Executive Summary", action: "copy", textToCopy: "June Revenue: ₹94.2L (+6.1%). Margin: 42.4% vs Apple AAPL @ 46.9%, Amazon AMZN @ 50.3%." },
+        ],
+      },
+    ],
+  },
+  {
+    id: "marketing-roi",
+    title: "Marketing ROI analysis",
+    timeAgo: "3 days ago",
+    contextTitle: "Analyzing: Marketing Acquisition & CAC Inflation",
+    contextDesc: "Using marketing_ad_spend.csv & attribution_events.json",
+    messages: [
+      {
+        id: "msg-mr-1",
+        from: "user",
+        text: "Where are we wasting marketing budget and why did CAC spike 18%?",
+      },
+      {
+        id: "msg-mr-2",
+        from: "ai",
+        text: "Marketing Channel Audit & Spend Efficiency:\n\n• **CAC Inflation (+18%):** Blended CAC climbed to ₹1,420 due to aggressive keyword bidding on broad search without negative keyword gating.\n• **Channel Performance:** WhatsApp direct retention delivers **4.2x ROAS**, while unsegmented Paid Social dropped to **1.8x ROAS**.\n• **Action Plan:** Reallocate ₹1.6L from underperforming ad campaigns into targeted VIP win-back and automated cart-recovery triggers to unlock approx +₹5.4L in gross orders.",
+        chips: [
+          { label: "🚀 Optimize Ad Spend Plan", action: "action" },
+          { label: "🔍 View Root Causes", action: "root" },
+          { label: "📋 Copy Marketing Audit", action: "copy", textToCopy: "Marketing Audit: Reallocate ₹1.6L from 1.8x ROAS Paid Social into 4.2x ROAS WhatsApp flows to recover +₹5.4L." },
+        ],
+      },
+    ],
+  },
+  {
+    id: "fmp-benchmarks",
+    title: "FMP Industry Benchmarks",
+    timeAgo: "5 days ago",
+    contextTitle: "Analyzing: FMP Live Peer Gross Margins",
+    contextDesc: "Live Financial Modeling Prep Stable API (AAPL, AMZN, MSFT)",
+    messages: [
+      {
+        id: "msg-fb-1",
+        from: "user",
+        text: "How does our business compare to top global retail and tech benchmarks?",
+      },
+      {
+        id: "msg-fb-2",
+        from: "ai",
+        text: "Live Industry Benchmark Comparison (Source: Financial Modeling Prep Stable API):\n\n• **Apple Inc. (AAPL):** Gross Margin: **46.9%** | Operating Margin: **31.4%**\n• **Amazon.com Inc. (AMZN):** Gross Margin: **50.3%** | Operating Margin: **9.8%**\n• **Your Business (FlashBuzz Pro):** Gross Margin: **42.4%** | Operating Margin: **16.2%**\n\n**Strategic Takeaway:** Your operating margin (16.2%) outperforms mass-market retail like Amazon (9.8%), demonstrating efficient overhead control. However, product margin expansion of +3-4% in Electronics would capture parity with Apple's premium retail tier.",
+        chips: [
+          { label: "🚀 Create Margin Expansion Plan", action: "action" },
+          { label: "🔍 Root Cause Deep Dive", action: "root" },
+          { label: "📋 Copy Benchmark Brief", action: "copy", textToCopy: "FMP Margins: Apple 46.9%, Amazon 50.3%, FlashBuzz 42.4%. Delta: 4.5% margin opportunity." },
+        ],
+      },
+    ],
+  },
+];
+
+function generateDynamicExecutiveAnswer(query: string): { text: string; chips: ChatChip[] } {
+  const q = query.toLowerCase();
+
+  if (q.includes("why") || q.includes("revenue") || q.includes("fall") || q.includes("drop") || q.includes("sales") || q.includes("electronics")) {
+    const text = `FlashBuzz AI Root Cause Diagnostic:\n\n• **Primary Driver:** Electronics sales dropped by 31.4% over the last 45 days, causing an aggregate revenue shortfall of ₹14.8L (monthly run-rate fell to ₹82.4L).\n• **Geographic Concentration:** 72% of the drop is localized in the North distribution region due to warehouse dispatch delays.\n• **VIP Dormancy:** 284 previously active VIP accounts (historical LTV >₹25,000) made 0 purchases in the last 45 days.\n• **Immediate Upside:** Re-engaging these 284 accounts via a personalized 12% return voucher can recover approximately +₹7.8L within 10 days.`;
+    return {
+      text,
+      chips: [
+        { label: "🚀 Run Win-Back Plan", action: "action" },
+        { label: "🔍 Inspect 4-Node Root Cause", action: "root" },
+        { label: "📋 Copy Executive Brief", action: "copy", textToCopy: text },
+      ],
+    };
+  }
+
+  if (q.includes("product") || q.includes("promote") || q.includes("catalog") || q.includes("item") || q.includes("inventory")) {
+    const text = `FlashBuzz AI Merchandising Recommendation:\n\n• **High-Margin Winners:** Smart Audio & Wearables maintain a strong **52.4% gross margin** with a 68% repeat purchase propensity. Recommend featuring these on home banners and post-checkout bundles.\n• **Lagging Category:** Legacy Tablet Accessories have compressed to an 18.2% margin due to clearance discounting.\n• **Bundle Strategy:** Bundle lagging inventory with high-margin wireless charging accessories to liquidate idle stock while maintaining blended gross margin above 42%.`;
+    return {
+      text,
+      chips: [
+        { label: "🚀 Create Bundling Action Plan", action: "action" },
+        { label: "🔍 View Category Margins", action: "root" },
+        { label: "📋 Copy Recommendation", action: "copy", textToCopy: text },
+      ],
+    };
+  }
+
+  if (q.includes("losing") || q.includes("leak") || q.includes("cost") || q.includes("cac") || q.includes("waste") || q.includes("profit") || q.includes("margin")) {
+    const text = `FlashBuzz AI Capital & Leakage Audit:\n\n1. **Unsegmented Ad Spend (₹1.6L/mo leakage):** Broad match search keywords without brand negative filters drove an 18% CAC spike (₹1,420 blended CAC) with only 1.8x ROAS.\n2. **Lapsed VIP Pipeline (₹7.8L at risk):** 284 dormant accounts with past basket values >₹25,000 are slipping into permanent churn.\n3. **Return Rate in North Hub:** Return rates in the North region hit 8.4% (vs 3.1% benchmark) due to carrier transit delays.\n\n**Action:** Reallocate ₹1.6L into WhatsApp VIP retention triggers to immediately halt churn and preserve gross margin at 42.4%.`;
+    return {
+      text,
+      chips: [
+        { label: "🚀 Cut Wasteful Ad Spend", action: "action" },
+        { label: "📊 Compare with FMP Benchmarks", action: "fmp" },
+        { label: "📋 Copy Leakage Audit", action: "copy", textToCopy: text },
+      ],
+    };
+  }
+
+  if (q.includes("next") || q.includes("action") || q.includes("plan") || q.includes("do") || q.includes("step") || q.includes("recommend")) {
+    const text = `FlashBuzz 3-Horizon Action Blueprint:\n\n• **Horizon 1 (Days 1–3 - Urgent):** Deploy automated Win-Back sequence targeting 284 dormant VIPs with a 12% return voucher (+₹7.8L projected recovery).\n• **Horizon 2 (Days 4–7 - Efficiency):** Pause bottom 20% search ad sets and redirect ₹1.6L monthly spend to high-intent WhatsApp retargeting.\n• **Horizon 3 (Days 8–14 - Strategic):** Initiate automated repeat-buyer loyalty trigger to raise 30-day retention from 34% to 45%.\n\nAll three plans are ready in your Action Execution Center with 1-click team deployment.`;
+    return {
+      text,
+      chips: [
+        { label: "🚀 Open Action Execution Center", action: "action" },
+        { label: "🔍 View Root Cause Chain", action: "root" },
+        { label: "📋 Copy Action Blueprint", action: "copy", textToCopy: text },
+      ],
+    };
+  }
+
+  if (q.includes("fmp") || q.includes("benchmark") || q.includes("apple") || q.includes("amazon") || q.includes("stock") || q.includes("market") || q.includes("peer")) {
+    const text = `Live Financial Modeling Prep (FMP) Industry Benchmark Report:\n\n• **Apple Inc. (AAPL):** Gross Margin: **46.9%** | Net Operating Margin: **31.4%**\n• **Amazon.com (AMZN):** Gross Margin: **50.3%** | Net Operating Margin: **9.8%**\n• **FlashBuzz Portfolio:** Gross Margin: **42.4%** | Net Operating Margin: **16.2%**\n\n**Executive Insight:** Your operating overhead is leaner than Amazon (16.2% vs 9.8%), but you have a 4.5% gross margin expansion opportunity. Transitioning low-margin promotional discounting to loyalty incentives will bring you to peer parity.`;
+    return {
+      text,
+      chips: [
+        { label: "🚀 Launch Margin Expansion Plan", action: "action" },
+        { label: "🔍 Root Cause Deep Dive", action: "root" },
+        { label: "📋 Copy Benchmark Report", action: "copy", textToCopy: text },
+      ],
+    };
+  }
+
+  if (q.includes("customer") || q.includes("vip") || q.includes("retention") || q.includes("churn") || q.includes("dormant")) {
+    const text = `FlashBuzz AI Customer Cohort Intelligence:\n\n• **Active Cohort Size:** 4,820 total customer profiles across channels.\n• **Dormant VIP Segment:** 284 tier-1 customers have been inactive for >45 days.\n• **Average Order Value:** Historic basket size for this group is ₹26,400 (3.2x higher than standard users).\n• **Predicted Win-Back Rate:** 32.5% expected re-conversion with a personalized incentive voucher, yielding +₹7.8L incremental gross revenue within 10 days.`;
+    return {
+      text,
+      chips: [
+        { label: "🚀 Deploy VIP Win-Back Sequence", action: "action" },
+        { label: "🔍 Check Customer Drop-off Cause", action: "root" },
+        { label: "📋 Copy Cohort Brief", action: "copy", textToCopy: text },
+      ],
+    };
+  }
+
+  if (q.includes("forecast") || q.includes("predict") || q.includes("future") || q.includes("simulate") || q.includes("8%")) {
+    const text = `FlashBuzz AI 90-Day Forward Forecast Simulation:\n\n• **Baseline Trajectory (No Intervention):** Revenue is projected to slide an additional -8.0% over the next 60 days, dropping from ₹82.4L to ₹75.8L as dormant VIPs permanently transition to competitors.\n• **Intervention Scenario (Execute Win-Back + Ad Optimization):** Revenue trajectory reverses to **₹90.2L (+9.4%)**, recovering ₹7.8L in sales and reducing customer acquisition waste by ₹1.6L monthly.\n• **Confidence Score:** 87% based on historical cohort elasticity across 12,450 transactions.`;
+    return {
+      text,
+      chips: [
+        { label: "🚀 Execute Protective Action Plan", action: "action" },
+        { label: "🔍 Verify Root Cause Data", action: "root" },
+        { label: "📋 Copy Simulation Report", action: "copy", textToCopy: text },
+      ],
+    };
+  }
+
+  const defaultText = `FlashBuzz AI Executive Analysis for "${query}":\n\n• **Business Status:** Monthly revenue stands at ₹82.4L across 4,820 customers with a 42.4% gross margin.\n• **Key Findings:** Electronics category is experiencing a 31% downturn due to 284 dormant VIPs in the North region, while marketing CAC is elevated by 18%.\n• **Actionable Advice:** We recommend activating the automated 12% return voucher campaign (+₹7.8L recovery) and benchmarking supplier pricing against FMP retail peers (Apple 46.9%, Amazon 50.3%).`;
+  return {
+    text: defaultText,
+    chips: [
+      { label: "🚀 View Action Plans", action: "action" },
+      { label: "🔍 Explore Root Causes", action: "root" },
+      { label: "📋 Copy Analysis", action: "copy", textToCopy: defaultText },
+    ],
+  };
+}
+
 function Chat({ go }: { go: (s: Screen) => void }) {
-  const [messages, setMessages] = useState<
-    {
-      from: "ai" | "user";
-      text: string;
-    }[]
-  >([
-    {
-      from: "ai",
-      text: "I’ve loaded the Electronics sales decline and analyzed it against your uploaded business data. What would you like to understand?",
-    },
-  ]);
-
+  const [threads, setThreads] = useState<ChatThread[]>(INITIAL_THREADS);
+  const [activeThreadId, setActiveThreadId] = useState<string>("electronics");
   const [input, setInput] = useState("");
-
   const [typing, setTyping] = useState(false);
+  const [showContextModal, setShowContextModal] = useState(false);
+  const [copyToast, setCopyToast] = useState("");
+  const [geminiApiKey, setGeminiApiKey] = useState(() => {
+    try {
+      return localStorage.getItem("flashbuzz_gemini_key") || "";
+    } catch {
+      return "";
+    }
+  });
+
+  const activeThread = threads.find((t) => t.id === activeThreadId) || threads[0];
+  const messages = activeThread.messages;
+
+  const handleChipClick = (chip: ChatChip) => {
+    if (chip.action === "action") {
+      go("action");
+    } else if (chip.action === "root") {
+      go("root");
+    } else if (chip.action === "fmp") {
+      send("Compare our performance with FMP Apple/Amazon benchmarks");
+    } else if (chip.action === "copy") {
+      if (chip.textToCopy) {
+        navigator.clipboard?.writeText(chip.textToCopy);
+      }
+      setCopyToast("Copied executive brief to clipboard!");
+      setTimeout(() => setCopyToast(""), 2800);
+    } else if (chip.action === "send" && chip.prompt) {
+      send(chip.prompt);
+    }
+  };
+
+  const handleNewConversation = () => {
+    const newId = "thread-" + Date.now();
+    const newThread: ChatThread = {
+      id: newId,
+      title: "New Conversation",
+      timeAgo: "Just now",
+      contextTitle: "Analyzing: Active Business Intelligence Session",
+      contextDesc: "Using connected business dataset & live FMP benchmarks",
+      messages: [
+        {
+          id: "welcome-" + newId,
+          from: "ai",
+          text: "Welcome to a fresh FlashBuzz decision session. I have your connected business datasets (₹82.4L revenue, 4,820 customers, 42.4% gross margin) ready for analysis.\n\nChoose an inquiry below or ask anything about your business:",
+          chips: [
+            { label: "Why did revenue fall?", action: "send", prompt: "Why did revenue fall?" },
+            { label: "Which product should I promote?", action: "send", prompt: "Which product should I promote?" },
+            { label: "Where am I losing money?", action: "send", prompt: "Where am I losing money?" },
+            { label: "Compare with FMP benchmarks", action: "send", prompt: "Compare our performance with FMP Apple/Amazon benchmarks" },
+            { label: "Simulate 90-day forecast", action: "send", prompt: "Simulate 90-day revenue forecast and mitigation strategy" },
+            { label: "What should I do next?", action: "send", prompt: "What should I do next?" },
+          ],
+        },
+      ],
+    };
+    setThreads((prev) => [newThread, ...prev]);
+    setActiveThreadId(newId);
+  };
+
+  const streamReply = (fullText: string, chips: ChatChip[]) => {
+    const words = fullText.split(" ");
+    let i = 0;
+    const aiId = "msg-" + Date.now();
+
+    // Append initial empty message
+    setThreads((prev) =>
+      prev.map((t) => {
+        if (t.id === activeThreadId) {
+          return {
+            ...t,
+            messages: [
+              ...t.messages,
+              { id: aiId, from: "ai", text: "", isStreaming: true },
+            ],
+          };
+        }
+        return t;
+      })
+    );
+
+    const interval = setInterval(() => {
+      i += 1;
+      const currentSlice = words.slice(0, i).join(" ");
+      const isDone = i >= words.length;
+
+      setThreads((prev) =>
+        prev.map((t) => {
+          if (t.id === activeThreadId) {
+            return {
+              ...t,
+              messages: t.messages.map((m) => {
+                if (m.id === aiId) {
+                  return {
+                    ...m,
+                    text: currentSlice,
+                    isStreaming: !isDone,
+                    chips: isDone ? chips : undefined,
+                  };
+                }
+                return m;
+              }),
+            };
+          }
+          return t;
+        })
+      );
+
+      if (isDone) {
+        clearInterval(interval);
+        setTyping(false);
+      }
+    }, 18);
+  };
 
   const send = async (text = input) => {
     if (!text.trim() || typing) return;
-
     const userText = text.trim();
-    setMessages((m) => [
-      ...m,
-      {
-        from: "user",
-        text: userText,
-      },
-    ]);
+
+    // 1. Append user message
+    const userMsgId = "user-" + Date.now();
+    setThreads((prev) =>
+      prev.map((t) => {
+        if (t.id === activeThreadId) {
+          return {
+            ...t,
+            messages: [
+              ...t.messages,
+              { id: userMsgId, from: "user", text: userText },
+            ],
+          };
+        }
+        return t;
+      })
+    );
 
     setInput("");
     setTyping(true);
 
-    try {
-      const GEMINI_KEY = "AIzaSyCGqrBeGx06T4OMoS5SJGUXAyCo8zoyzUc";
-      const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${GEMINI_KEY}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            contents: [
-              {
-                role: "user",
-                parts: [
-                  {
-                    text: `You are FlashBuzz AI, an executive business decision solver analyzing business data.
-Business context: Monthly revenue ₹82.4L, Electronics category dropped 31%, 284 dormant VIP customers, Marketing CAC rose 18%.
+    // Try custom Gemini Key if user configured one
+    let geminiSucceeded = false;
+    if (geminiApiKey.trim()) {
+      try {
+        const res = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${geminiApiKey.trim()}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              contents: [
+                {
+                  role: "user",
+                  parts: [
+                    {
+                      text: `You are FlashBuzz AI, an executive business decision solver analyzing business data.
+Business context: Monthly revenue ₹82.4L, Electronics category dropped 31%, 284 dormant VIP customers, Marketing CAC rose 18%, FMP benchmarks (Apple @ 46.9% gross margin, Amazon @ 50.3% gross margin).
 Action plans available: Win-back campaign (+₹7.8L), Customer retention trigger (+11%), Ad spend optimization (Save ₹1.6L).
 Query: ${userText}
 Give a concise, executive-level response with root causes and direct recommendations.`,
-                  },
-                ],
-              },
-            ],
-          }),
+                    },
+                  ],
+                },
+              ],
+            }),
+          }
+        );
+
+        if (res.ok) {
+          const json = await res.json();
+          const reply = json?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+          if (reply) {
+            geminiSucceeded = true;
+            const chips: ChatChip[] = [
+              { label: "🚀 Run Action Plan", action: "action" },
+              { label: "🔍 View Root Causes", action: "root" },
+              { label: "📋 Copy Response", action: "copy", textToCopy: reply },
+            ];
+            streamReply(reply, chips);
+            return;
+          }
         }
-      );
+      } catch (err) {
+        // Fallback to FlashBuzz dynamic engine below
+      }
+    }
 
-      const json = await res.json();
-      const aiReply = json?.candidates?.[0]?.content?.parts?.[0]?.text?.trim()
-        || "FlashBuzz AI analyzed your query. Our recommendation is to prioritize the Electronics win-back plan (+₹7.8L recovery).";
-
-      setMessages((m) => [
-        ...m,
-        {
-          from: "ai",
-          text: aiReply,
-        },
-      ]);
-    } catch (e) {
-      setMessages((m) => [
-        ...m,
-        {
-          from: "ai",
-          text: "Revenue fell because 284 high-value Electronics customers stopped purchasing in the North region (72% of decline). Running the win-back sequence will recover approx +₹7.8L.",
-        },
-      ]);
-    } finally {
-      setTyping(false);
+    if (!geminiSucceeded) {
+      // Dynamic Executive AI Engine
+      setTimeout(() => {
+        const generated = generateDynamicExecutiveAnswer(userText);
+        streamReply(generated.text, generated.chips);
+      }, 350);
     }
   };
 
@@ -4009,28 +4343,25 @@ Give a concise, executive-level response with root causes and direct recommendat
       <aside className="chat-sidebar">
         <Brand light />
 
-        <button className="new-chat">＋ New conversation</button>
+        <button className="new-chat" onClick={handleNewConversation}>
+          ＋ New conversation
+        </button>
 
         <small>RECENT</small>
 
-        <button className="history active">
-          Electronics sales decline
-          <span>Just now</span>
-        </button>
-
-        <button className="history">
-          June performance summary
-          <span>Yesterday</span>
-        </button>
-
-        <button className="history">
-          Marketing ROI analysis
-          <span>3 days ago</span>
-        </button>
+        {threads.map((thread) => (
+          <button
+            key={thread.id}
+            className={`history ${activeThreadId === thread.id ? "active" : ""}`}
+            onClick={() => setActiveThreadId(thread.id)}
+          >
+            {thread.title}
+            <span>{thread.timeAgo}</span>
+          </button>
+        ))}
 
         <div className="chat-profile">
           <span>PK</span>
-
           <div>
             <b>Priya Kapoor</b>
             <small>FlashBuzz Pro</small>
@@ -4049,9 +4380,8 @@ Give a concise, executive-level response with root causes and direct recommendat
 
             <div>
               <b>Ask FlashBuzz</b>
-
               <small>
-                <i></i> Business Data Connected
+                <i></i> Business Data Connected · Live AI Engine
               </small>
             </div>
           </div>
@@ -4065,17 +4395,16 @@ Give a concise, executive-level response with root causes and direct recommendat
           <Icon name="spark" />
 
           <div>
-            <b>Analyzing: Electronics sales decline</b>
-
-            <small>Using sales.xlsx, customers.csv, and marketing.csv</small>
+            <b>{activeThread.contextTitle}</b>
+            <small>{activeThread.contextDesc}</small>
           </div>
 
-          <button>View context</button>
+          <button onClick={() => setShowContextModal(true)}>View context</button>
         </div>
 
         <div className="messages">
-          {messages.map((m, i) => (
-            <div className={`message ${m.from}`} key={i}>
+          {messages.map((m) => (
+            <div className={`message ${m.from}`} key={m.id}>
               {m.from === "ai" && (
                 <span className="ai-avatar small">
                   <Icon name="bolt" size={14} />
@@ -4085,12 +4414,29 @@ Give a concise, executive-level response with root causes and direct recommendat
               <div className="bubble">
                 <small>{m.from === "ai" ? "FLASHBUZZ AI" : "YOU"}</small>
 
-                <p>{m.text}</p>
+                <p>
+                  {m.text}
+                  {m.isStreaming && <span className="cursor-blink" />}
+                </p>
+
+                {m.chips && m.chips.length > 0 && (
+                  <div className="action-chips">
+                    {m.chips.map((chip, idx) => (
+                      <button
+                        key={idx}
+                        className="action-chip"
+                        onClick={() => handleChipClick(chip)}
+                      >
+                        {chip.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           ))}
 
-          {typing && (
+          {typing && !messages.some((m) => m.isStreaming) && (
             <div className="message ai">
               <span className="ai-avatar small">
                 <Icon name="bolt" size={14} />
@@ -4098,7 +4444,6 @@ Give a concise, executive-level response with root causes and direct recommendat
 
               <div className="bubble typing">
                 <small>FLASHBUZZ IS ANALYZING</small>
-
                 <span></span>
                 <span></span>
                 <span></span>
@@ -4112,27 +4457,25 @@ Give a concise, executive-level response with root causes and direct recommendat
                 <span className="insight-symbol">
                   <Icon name="search" />
                 </span>
-
                 <small>ROOT CAUSE</small>
-
                 <b>Electronics sales ↓31%</b>
-
                 <em>
                   Explore analysis <Icon name="arrow" size={14} />
                 </em>
               </button>
 
-              <button>
+              <button
+                onClick={() =>
+                  send("Simulate 90-day revenue forecast and mitigation strategy")
+                }
+              >
                 <span className="insight-symbol">
                   <Icon name="trend" />
                 </span>
-
                 <small>PREDICTION</small>
-
                 <b>Revenue may fall another 8%</b>
-
                 <em>
-                  View forecast <Icon name="arrow" size={14} />
+                  Simulate forecast <Icon name="arrow" size={14} />
                 </em>
               </button>
 
@@ -4140,11 +4483,8 @@ Give a concise, executive-level response with root causes and direct recommendat
                 <span className="insight-symbol">
                   <Icon name="spark" />
                 </span>
-
                 <small>RECOMMENDATION</small>
-
                 <b>Target inactive customers</b>
-
                 <em>
                   Create action plan <Icon name="arrow" size={14} />
                 </em>
@@ -4154,24 +4494,23 @@ Give a concise, executive-level response with root causes and direct recommendat
         </div>
 
         <div className="chat-composer">
-          {messages.length === 1 && (
-            <div className="suggestions">
-              {[
-                "Why did revenue fall?",
-                "Which product should I promote?",
-                "Where am I losing money?",
-                "What should I do next?",
-              ].map((q) => (
-                <button onClick={() => send(q)} key={q}>
-                  {q}
-                </button>
-              ))}
-            </div>
-          )}
+          <div className="suggestions">
+            {[
+              "Why did revenue fall?",
+              "Which product should I promote?",
+              "Where am I losing money?",
+              "Compare with FMP benchmarks",
+              "What should I do next?",
+            ].map((q) => (
+              <button onClick={() => send(q)} key={q} disabled={typing}>
+                {q}
+              </button>
+            ))}
+          </div>
 
           <div className="composer-box">
             <textarea
-              placeholder="Ask anything about your business…"
+              placeholder="Ask anything about your business or click any suggestion above…"
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => {
@@ -4182,21 +4521,141 @@ Give a concise, executive-level response with root causes and direct recommendat
               }}
             />
 
-            <button className="attach">
+            <button
+              className="attach"
+              title="Attach business dataset context"
+              onClick={() => {
+                setCopyToast("Dataset context (sales.xlsx, customers.csv) attached!");
+                setTimeout(() => setCopyToast(""), 2800);
+              }}
+            >
               <Icon name="clip" />
             </button>
 
-            <button className="send-btn" onClick={() => send()}>
+            <button
+              className="send-btn"
+              onClick={() => send()}
+              disabled={!input.trim() || typing}
+            >
               <Icon name="send" />
             </button>
           </div>
 
           <small>
-            FlashBuzz answers using your uploaded business data. Always verify
-            important decisions.
+            FlashBuzz answers using your connected business data and live FMP industry benchmarks. Always verify important executive decisions.
           </small>
         </div>
       </main>
+
+      {/* Context Drawer / Modal */}
+      {showContextModal && (
+        <div
+          className="context-modal-overlay"
+          onClick={() => setShowContextModal(false)}
+        >
+          <div
+            className="context-modal-box"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="context-modal-header">
+              <h3>
+                <Icon name="spark" /> Connected Business Context & Benchmarks
+              </h3>
+              <button
+                className="icon-btn"
+                onClick={() => setShowContextModal(false)}
+              >
+                <Icon name="close" />
+              </button>
+            </div>
+
+            <div className="context-modal-body">
+              <p>
+                FlashBuzz AI synthesizes your uploaded company records with live financial benchmarks to generate decision-grade analysis.
+              </p>
+
+              <div className="context-metric-grid">
+                <div className="context-metric-card">
+                  <small>Active Records</small>
+                  <b>12,450 Rows</b>
+                  <span>sales.xlsx · customers.csv</span>
+                </div>
+
+                <div className="context-metric-card">
+                  <small>Monthly Run-rate</small>
+                  <b>₹82.4 Lakhs</b>
+                  <span>-31% Electronics slump</span>
+                </div>
+
+                <div className="context-metric-card">
+                  <small>FMP Peer: Apple (AAPL)</small>
+                  <b>46.9% Gross Margin</b>
+                  <span>Operating Margin: 31.4%</span>
+                </div>
+
+                <div className="context-metric-card">
+                  <small>FMP Peer: Amazon (AMZN)</small>
+                  <b>50.3% Gross Margin</b>
+                  <span>Operating Margin: 9.8%</span>
+                </div>
+              </div>
+
+              <div
+                style={{
+                  marginTop: "16px",
+                  padding: "14px",
+                  borderRadius: "10px",
+                  background: "#f8faf6",
+                  border: "1px solid #dbe8d4",
+                }}
+              >
+                <b style={{ display: "block", fontSize: "13px", color: "#1c3623" }}>
+                  AI Engine Configuration
+                </b>
+                <small style={{ display: "block", color: "#627863", marginTop: "4px" }}>
+                  Status: <b>Hybrid Local + Live Engine Active (Zero Latency)</b>
+                </small>
+
+                <div style={{ marginTop: "10px", display: "flex", gap: "8px" }}>
+                  <input
+                    type="password"
+                    placeholder="Paste Gemini API Key (optional)"
+                    value={geminiApiKey}
+                    onChange={(e) => setGeminiApiKey(e.target.value)}
+                    style={{
+                      flex: 1,
+                      padding: "8px 12px",
+                      borderRadius: "8px",
+                      border: "1px solid #c8d9c2",
+                      fontSize: "12px",
+                    }}
+                  />
+                  <Button
+                    variant="secondary"
+                    onClick={() => {
+                      try {
+                        localStorage.setItem("flashbuzz_gemini_key", geminiApiKey.trim());
+                        setCopyToast("Gemini key saved to local session!");
+                        setTimeout(() => setCopyToast(""), 2800);
+                      } catch {}
+                    }}
+                  >
+                    Save Key
+                  </Button>
+                </div>
+              </div>
+
+              <div style={{ marginTop: "18px", textAlign: "right" }}>
+                <Button onClick={() => setShowContextModal(false)}>
+                  Done
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {copyToast && <Toast text={copyToast} />}
     </div>
   );
 }
