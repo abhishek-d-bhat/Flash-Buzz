@@ -18,6 +18,7 @@ type Screen =
 type IconName =
   | "bolt"
   | "arrow"
+  | "arrow-left"
   | "upload"
   | "file"
   | "check"
@@ -42,6 +43,12 @@ const paths: Record<IconName, React.ReactNode> = {
     <>
       <path d="M5 12h14" />
       <path d="m13 6 6 6-6 6" />
+    </>
+  ),
+  "arrow-left": (
+    <>
+      <path d="M19 12H5" />
+      <path d="m11 18-6-6 6-6" />
     </>
   ),
   upload: (
@@ -171,13 +178,20 @@ const Button = ({
 function BackButton({
   onClick,
   label = "Back",
+  className = "",
 }: {
   onClick: () => void;
   label?: string;
+  className?: string;
 }) {
   return (
-    <button className="back-btn" onClick={onClick}>
-      ← {label}
+    <button
+      className={`back-btn ${className}`}
+      onClick={onClick}
+      aria-label={label}
+    >
+      <Icon name="arrow-left" size={15} />
+      <span>{label}</span>
     </button>
   );
 }
@@ -2042,20 +2056,26 @@ function PrepareData({ go }: { go: (s: Screen) => void }) {
             </div>
 
 
-            <div
-              style={{
-                display: "flex",
-                gap: 12,
-                flexWrap: "wrap",
-              }}
-            >
-              <button onClick={() => go("upload")}>
+            <div className="prepare-actions">
+              <Button
+                variant="secondary"
+                onClick={() => go("upload")}
+                className="prepare-back-btn"
+                aria-label="Back to Upload"
+              >
+                <Icon name="arrow-left" size={16} />
                 Back to Upload
-              </button>
+              </Button>
 
-              <button onClick={() => go("processing")}>
+              <Button
+                variant="primary"
+                onClick={() => go("processing")}
+                className="prepare-continue-btn"
+                aria-label="Continue to Analysis"
+              >
                 Continue to Analysis
-              </button>
+                <Icon name="arrow" size={16} />
+              </Button>
             </div>
           </>
         )}
@@ -3869,13 +3889,13 @@ function RootCause({
 
       <main className="dashboard-main root-main">
         <header className="inner-header">
-          <button className="back-btn" onClick={() => go("dashboard")}>
-            ← Back to overview
-          </button>
+          <div className="inner-header-top">
+            <BackButton onClick={() => go("dashboard")} label="Back to overview" />
 
-          <span className="severity high">
-            {sales ? "LIVE DATA ANALYSIS" : "ROOT CAUSE ENGINE ACTIVE"}
-          </span>
+            <span className="severity high">
+              {sales ? "LIVE DATA ANALYSIS" : "ROOT CAUSE ENGINE ACTIVE"}
+            </span>
+          </div>
 
           <h1>
             {sales
@@ -4555,10 +4575,18 @@ Give a concise, executive-level response with root causes and direct recommendat
       </aside>
 
       <main className="chat-main">
-        <header>
-          <BackButton onClick={() => go("root")} label="Back to analysis" />
+        <header className="chat-header">
+          <Button
+            variant="secondary"
+            onClick={() => go("root")}
+            className="chat-back-btn"
+            aria-label="Back to analysis"
+          >
+            <Icon name="arrow-left" size={15} />
+            <span className="chat-back-text">Back to analysis</span>
+          </Button>
 
-          <div>
+          <div className="chat-header-title">
             <span className="ai-avatar">
               <Icon name="bolt" />
             </span>
@@ -4571,7 +4599,12 @@ Give a concise, executive-level response with root causes and direct recommendat
             </div>
           </div>
 
-          <button className="icon-btn" onClick={() => go("root")}>
+          <button
+            className="icon-btn chat-close-btn"
+            onClick={() => go("root")}
+            aria-label="Close chat"
+            title="Close chat"
+          >
             <Icon name="close" />
           </button>
         </header>

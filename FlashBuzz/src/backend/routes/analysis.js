@@ -41,16 +41,16 @@ const REQUIRED_COLUMNS = [
 ];
 
 const ALIASES = {
-  Order_ID: ["order_id", "orderid", "order_number", "ordernumber", "invoice_id"],
-  Order_Date: ["order_date", "orderdate", "date", "sales_date"],
-  Product_Name: ["product_name", "product", "productname", "item", "product_code"],
-  Category: ["category", "product_category", "productline", "product_line"],
-  Region: ["region", "state", "city", "country", "location", "territory"],
-  Quantity: ["quantity", "qty", "quantityordered", "units", "units_sold"],
-  Unit_Price: ["unit_price", "unitprice", "price_per_unit", "selling_price"],
-  Discount_Percent: ["discount_percent", "discount", "discount_percentage"],
-  Sales_Amount: ["sales_amount", "sales", "revenue", "total_sales", "amount"],
-  Cost_Per_Unit: ["cost_per_unit", "unit_cost", "cost", "purchase_price"]
+  Order_ID: ["order_id", "orderid", "order_number", "ordernumber", "invoice_id", "invoicenumber", "transaction_id"],
+  Order_Date: ["order_date", "orderdate", "date", "sales_date", "invoice_date"],
+  Product_Name: ["product_name", "product", "productname", "item", "product_code", "productcode", "item_name", "product_title", "description"],
+  Category: ["category", "product_category", "productline", "product_line", "department"],
+  Region: ["region", "country", "territory", "state", "city", "location", "zone", "area"],
+  Quantity: ["quantity", "qty", "quantityordered", "units", "units_sold", "order_qty"],
+  Unit_Price: ["unit_price", "unitprice", "price_per_unit", "selling_price", "priceeach", "price_each", "price", "rate", "unit_rate"],
+  Discount_Percent: ["discount_percent", "discount", "discount_percentage", "discount_rate", "discount_pct"],
+  Sales_Amount: ["sales_amount", "sales", "revenue", "total_sales", "amount", "total_amount", "net_sales"],
+  Cost_Per_Unit: ["cost_per_unit", "unit_cost", "cost", "purchase_price", "unit_cost_price", "cogs"]
 };
 
 
