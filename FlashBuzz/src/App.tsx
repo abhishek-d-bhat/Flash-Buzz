@@ -18,6 +18,7 @@ type Screen =
 type IconName =
   | "bolt"
   | "arrow"
+  | "arrow-left"
   | "upload"
   | "file"
   | "check"
@@ -42,6 +43,12 @@ const paths: Record<IconName, React.ReactNode> = {
     <>
       <path d="M5 12h14" />
       <path d="m13 6 6 6-6 6" />
+    </>
+  ),
+  "arrow-left": (
+    <>
+      <path d="M19 12H5" />
+      <path d="m11 18-6-6 6-6" />
     </>
   ),
   upload: (
@@ -171,13 +178,20 @@ const Button = ({
 function BackButton({
   onClick,
   label = "Back",
+  className = "",
 }: {
   onClick: () => void;
   label?: string;
+  className?: string;
 }) {
   return (
-    <button className="back-btn" onClick={onClick}>
-      ← {label}
+    <button
+      className={`back-btn ${className}`}
+      onClick={onClick}
+      aria-label={label}
+    >
+      <Icon name="arrow-left" size={15} />
+      <span>{label}</span>
     </button>
   );
 }
@@ -1111,6 +1125,12 @@ const analyzeFiles = async () => {
       );
     }
 
+    if (!data.files || data.files.length === 0 || !data.files.some((f: any) => f.sheets?.length > 0)) {
+      throw new Error(
+        data.message || "No readable sheets or valid rows found in the uploaded file.",
+      );
+    }
+
     console.log(
       "FlashBuzz analysis:",
       data,
@@ -1790,20 +1810,26 @@ function PrepareData({ go }: { go: (s: Screen) => void }) {
             </div>
 
 
-            <div
-              style={{
-                display: "flex",
-                gap: 12,
-                flexWrap: "wrap",
-              }}
-            >
-              <button onClick={() => go("upload")}>
+            <div className="prepare-actions">
+              <Button
+                variant="secondary"
+                onClick={() => go("upload")}
+                className="prepare-back-btn"
+                aria-label="Back to Upload"
+              >
+                <Icon name="arrow-left" size={16} />
                 Back to Upload
-              </button>
+              </Button>
 
-              <button onClick={() => go("processing")}>
+              <Button
+                variant="primary"
+                onClick={() => go("processing")}
+                className="prepare-continue-btn"
+                aria-label="Continue to Analysis"
+              >
                 Continue to Analysis
-              </button>
+                <Icon name="arrow" size={16} />
+              </Button>
             </div>
           </>
         )}
@@ -1992,22 +2018,27 @@ function Complete({ go }: { go: (s: Screen) => void }) {
       (file: any) => file?.sheets || [],
     ) || [];
 
-  const analyses = sheets
+  const salesAnalyses = sheets
     .map((sheet: any) => sheet?.analysis?.salesAnalysis)
     .filter(Boolean);
 
-  const insights = analyses.flatMap(
+  const analyses = salesAnalyses.length > 0
+    ? salesAnalyses
+    : sheets.map((sheet: any) => sheet?.analysis).filter(Boolean);
+
+  const insights = (salesAnalyses.length > 0 ? salesAnalyses : analyses).flatMap(
     (analysis: any) => analysis.insights || [],
   );
 
   const criticalProblems = insights.filter(
-    (insight: any) => insight.type === "loss",
+    (insight: any) => insight.type === "loss" || insight.severity === "high" || insight.severity === "critical",
   ).length;
 
   const growthInsights = insights.filter(
     (insight: any) =>
       insight.type === "product" ||
-      insight.type === "region",
+      insight.type === "region" ||
+      insight.type === "opportunity",
   ).length;
 
   const totalInsights = insights.length;
@@ -2028,7 +2059,7 @@ function Complete({ go }: { go: (s: Screen) => void }) {
     })}`;
   };
 
-  const totalSales = analyses.reduce(
+  const totalSales = salesAnalyses.reduce(
     (total: number, analysis: any) =>
       total + (Number(analysis.totalSales) || 0),
     0,
@@ -2086,9 +2117,11 @@ function Complete({ go }: { go: (s: Screen) => void }) {
           <div>
             <Icon name="trend" />
             <b>
-              {hasAnalysis
+              {hasAnalysis && salesAnalyses.length > 0
                 ? formatCurrency(totalSales)
-                : "Unavailable"}
+                : hasAnalysis
+                  ? `${sheets[0]?.analysis?.rowCount || 0} rows`
+                  : "Unavailable"}
             </b>
             <small>Total sales analyzed</small>
           </div>
@@ -2841,14 +2874,25 @@ const getAnalysisSummary = () => {
   const sheets =
     data?.files?.flatMap((file: any) => file?.sheets || []) || [];
 
-  // Use the generic KPIs generated from the uploaded dataset.
   const sheet = sheets.find(
-    (item: any) => Array.isArray(item?.analysis?.kpis)
+    (item: any) => item?.analysis
   );
 
-  const kpis = sheet?.analysis?.kpis || [];
+  const salesKpis = (sheet?.analysis?.salesAnalysis?.kpis || []).filter(
+    (kpi: any) => kpi.value !== null && kpi.value !== undefined && kpi.type !== "unavailable"
+  );
+
+  const kpis = salesKpis.length > 0 ? salesKpis : (sheet?.analysis?.kpis || []);
 
   const iconMap: Record<string, IconName> = {
+    total_sales: "wallet",
+    gross_sales: "chart",
+    total_discount: "alert",
+    total_quantity: "target",
+    total_orders: "file",
+    average_order_value: "trend",
+    profit: "wallet",
+    profit_margin: "trend",
     total_records: "users",
     total_columns: "chart",
     duplicate_records: "alert",
@@ -2866,12 +2910,15 @@ const getAnalysisSummary = () => {
       rawValue !== undefined &&
       !(typeof rawValue === "number" && !Number.isFinite(rawValue))
     ) {
-      value =
-        typeof rawValue === "number"
-          ? rawValue.toLocaleString("en-IN", {
-              maximumFractionDigits: 2,
-            })
-          : String(rawValue);
+      if (kpi.type === "currency" && typeof rawValue === "number") {
+        value = formatMetricValue(rawValue);
+      } else if (typeof rawValue === "number") {
+        value = rawValue.toLocaleString("en-IN", {
+          maximumFractionDigits: 2,
+        });
+      } else {
+        value = String(rawValue);
+      }
     }
 
     return {
@@ -2891,6 +2938,16 @@ function Dashboard({ go }: { go: (s: Screen) => void }) {
   const [range, setRange] = useState("30D");
   const analysisData = getAnalysisData();
   const kpis = getAnalysisSummary();
+
+  const sheets =
+    analysisData?.files?.flatMap((file: any) => file?.sheets || []) || [];
+
+  const salesAnalysis = sheets.find(
+    (s: any) => s?.analysis?.salesAnalysis,
+  )?.analysis?.salesAnalysis;
+
+  const activeInsights =
+    salesAnalysis?.insights || sheets[0]?.analysis?.insights || [];
 
   console.log("FLASHBUZZ SAVED DATA:", analysisData);
   console.log("FLASHBUZZ KPI RESULTS:", kpis);
@@ -2941,11 +2998,18 @@ function Dashboard({ go }: { go: (s: Screen) => void }) {
           <div>
             <small>FLASHBUZZ DAILY BRIEF</small>
 
-            <b>Your revenue is growing, but Electronics needs attention.</b>
+            <b>
+              {salesAnalysis
+                ? `Total sales analyzed: ${formatMetricValue(salesAnalysis.totalSales)} across ${salesAnalysis.totalOrders || salesAnalysis.rowCount} orders.`
+                : sheets[0]?.analysis?.rowCount
+                  ? `Analyzed ${sheets[0].analysis.rowCount.toLocaleString("en-IN")} rows from your uploaded dataset.`
+                  : "Here’s what’s happening in your business."}
+            </b>
 
             <p>
-              We found one critical issue and three opportunities worth{" "}
-              <strong>₹7.8L</strong> in potential revenue.
+              {activeInsights.length > 0
+                ? activeInsights.map((i: any) => i.message || i.description).slice(0, 2).join(" ")
+                : "Explore your business metrics and trends below."}
             </p>
           </div>
 
@@ -3085,31 +3149,30 @@ function Dashboard({ go }: { go: (s: Screen) => void }) {
                 <Icon name="trend" />
               </div>
 
-              <h3>Electronics sales decreased 31%</h3>
+              <h3>{activeInsights[0]?.title || "Sales & product performance analyzed"}</h3>
 
               <p>
-                Repeat customers in the North region purchased significantly
-                less.
+                {activeInsights[0]?.message || activeInsights[0]?.description || "Calculated from your uploaded sales records."}
               </p>
 
               <div className="impact-line">
-                <span>Potential impact</span>
+                <span>{salesAnalysis ? "Top Category" : "Status"}</span>
 
-                <b>−₹4.2L</b>
+                <b>{salesAnalysis?.categories?.[0]?.name || "Active"}</b>
               </div>
 
               <div className="open-row">
-                View root cause <Icon name="arrow" size={15} />
+                View sales breakdown <Icon name="arrow" size={15} />
               </div>
             </button>
 
-            <button className="mini-problem">
+            <button className="mini-problem" onClick={() => go("root")}>
               <span className="severity medium">MEDIUM</span>
 
               <div>
-                <b>Marketing cost rose 18%</b>
+                <b>{activeInsights[1]?.title || "Regional breakdown"}</b>
 
-                <small>Conversion remained flat</small>
+                <small>{activeInsights[1]?.message || "Explore region details"}</small>
               </div>
 
               <Icon name="chevron" />
@@ -3178,13 +3241,13 @@ function RootCause({ go }: { go: (s: Screen) => void }) {
 
       <main className="dashboard-main root-main">
         <header className="inner-header">
-          <button className="back-btn" onClick={() => go("dashboard")}>
-            ← Back to insights
-          </button>
+          <div className="inner-header-top">
+            <BackButton onClick={() => go("dashboard")} label="Back to insights" />
 
-          <span className="severity high">
-            {sales ? "DATA ANALYSIS" : "NO DATA"}
-          </span>
+            <span className="severity high">
+              {sales ? "DATA ANALYSIS" : "NO DATA"}
+            </span>
+          </div>
 
           <h1>
             {sales
@@ -3413,10 +3476,18 @@ function Chat({ go }: { go: (s: Screen) => void }) {
       </aside>
 
       <main className="chat-main">
-        <header>
-          <BackButton onClick={() => go("root")} label="Back to analysis" />
+        <header className="chat-header">
+          <Button
+            variant="secondary"
+            onClick={() => go("root")}
+            className="chat-back-btn"
+            aria-label="Back to analysis"
+          >
+            <Icon name="arrow-left" size={15} />
+            <span className="chat-back-text">Back to analysis</span>
+          </Button>
 
-          <div>
+          <div className="chat-header-title">
             <span className="ai-avatar">
               <Icon name="bolt" />
             </span>
@@ -3430,7 +3501,12 @@ function Chat({ go }: { go: (s: Screen) => void }) {
             </div>
           </div>
 
-          <button className="icon-btn" onClick={() => go("root")}>
+          <button
+            className="icon-btn chat-close-btn"
+            onClick={() => go("root")}
+            aria-label="Close chat"
+            title="Close chat"
+          >
             <Icon name="close" />
           </button>
         </header>

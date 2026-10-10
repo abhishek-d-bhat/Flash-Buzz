@@ -2,9 +2,17 @@ import { defineConfig, type HtmlTagDescriptor, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import path from 'node:path'
+import fs from 'node:fs'
 
-import siteConfiguration from './.figma/make/site.json'
-
+let siteConfiguration: FigmaSiteConfiguration = {}
+const siteConfigPath = path.resolve(__dirname, './.figma/make/site.json')
+if (fs.existsSync(siteConfigPath)) {
+  try {
+    siteConfiguration = JSON.parse(fs.readFileSync(siteConfigPath, 'utf-8'))
+  } catch {
+    siteConfiguration = {}
+  }
+}
 
 // Vite config — https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
@@ -18,7 +26,7 @@ export default defineConfig(({ mode }) => {
       minify: !emitSourcemaps,
     },
     plugins: [
-react(),
+      react(),
       tailwindcss(),
       figmaSiteConfiguration(siteConfiguration),
       figmaErrorOverlayReplay(),
@@ -31,18 +39,18 @@ react(),
       },
     },
     server: {
-      host: process.env.FIGMA_DEV_SERVER_HOST || '0.0.0.0',
-      port: parseInt(process.env.PORT || '8443'),
-      strictPort: true,
+      host: process.env.FIGMA_DEV_SERVER_HOST || 'localhost',
+      port: parseInt(process.env.VITE_PORT || '5173'),
+      strictPort: false,
       watch: {
         ignored: [
           '**/.figma/**',
-],
+        ],
       },
     },
     preview: {
-      host: process.env.FIGMA_DEV_SERVER_HOST || '0.0.0.0',
-      port: parseInt(process.env.PORT || '8443'),
+      host: process.env.FIGMA_DEV_SERVER_HOST || 'localhost',
+      port: parseInt(process.env.VITE_PORT || '5173'),
     },
   }
 })
