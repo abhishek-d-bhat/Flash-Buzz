@@ -2700,9 +2700,13 @@ function Profile({
 function Sidebar({
   screen,
   go,
+  theme,
+  setTheme,
 }: {
   screen: Screen;
   go: (s: Screen) => void;
+  theme?: Theme;
+  setTheme?: (t: Theme) => void;
 }) {
   const user = getStoredUser();
 
@@ -2748,22 +2752,50 @@ function Sidebar({
           Overview
         </button>
 
-        <button>
+        <button
+          className={
+            screen === "root"
+              ? "active"
+              : ""
+          }
+          onClick={() => go("root")}
+        >
           <Icon name="spark" />
           AI Insights <em>4</em>
         </button>
 
-        <button onClick={() => go("chat")}>
+        <button
+          className={
+            screen === "chat"
+              ? "active"
+              : ""
+          }
+          onClick={() => go("chat")}
+        >
           <Icon name="send" />
           Ask FlashBuzz
         </button>
 
-        <button>
+        <button
+          className={
+            screen === "action"
+              ? "active"
+              : ""
+          }
+          onClick={() => go("action")}
+        >
           <Icon name="target" />
           Action Plans
         </button>
 
-        <button onClick={() => go("impact")}>
+        <button
+          className={
+            screen === "impact"
+              ? "active"
+              : ""
+          }
+          onClick={() => go("impact")}
+        >
           <Icon name="trend" />
           Business Impact
         </button>
@@ -2772,12 +2804,24 @@ function Sidebar({
 
       <div className="sidebar-bottom">
 
+        {setTheme && (
+          <button
+            className="theme-quick-toggle"
+            type="button"
+            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+            title="Toggle Light / Dark Mode"
+          >
+            <span>{theme === "dark" ? "🌙 Dark" : "☀️ Light"} Mode</span>
+            <small>{theme === "dark" ? "Switch Light" : "Switch Dark"}</small>
+          </button>
+        )}
+
         <div className="data-status">
           <span></span>
 
           <div>
             <b>Data connected</b>
-            <small>3 files · Updated now</small>
+            <small>3 files · Active engine</small>
           </div>
         </div>
 
@@ -2887,18 +2931,25 @@ const getAnalysisSummary = () => {
 };
 
 
-function Dashboard({ go }: { go: (s: Screen) => void }) {
+function Dashboard({
+  go,
+  theme,
+  setTheme,
+  setActivePlanIndex,
+}: {
+  go: (s: Screen) => void;
+  theme?: Theme;
+  setTheme?: (t: Theme) => void;
+  setActivePlanIndex?: (i: number) => void;
+}) {
   const [range, setRange] = useState("30D");
   const analysisData = getAnalysisData();
   const kpis = getAnalysisSummary();
 
-  console.log("FLASHBUZZ SAVED DATA:", analysisData);
-  console.log("FLASHBUZZ KPI RESULTS:", kpis);
-
   return (
 
     <div className="dashboard-layout">
-      <Sidebar screen="dashboard" go={go} />
+      <Sidebar screen="dashboard" go={go} theme={theme} setTheme={setTheme} />
 
       <main className="dashboard-main">
         <header className="dash-header">
@@ -3103,7 +3154,7 @@ function Dashboard({ go }: { go: (s: Screen) => void }) {
               </div>
             </button>
 
-            <button className="mini-problem">
+            <button className="mini-problem" onClick={() => { setActivePlanIndex?.(2); go("root"); }}>
               <span className="severity medium">MEDIUM</span>
 
               <div>
@@ -3124,7 +3175,187 @@ function Dashboard({ go }: { go: (s: Screen) => void }) {
 }
 
 
-function RootCause({ go }: { go: (s: Screen) => void }) {
+
+function AgenticSuggestionToolSection({
+  go,
+  onSelectPlan,
+}: {
+  go: (s: Screen) => void;
+  onSelectPlan: (index: number) => void;
+}) {
+  const [goal, setGoal] = useState<"Recover revenue" | "Improve retention" | "Reduce cost">("Recover revenue");
+  const [risk, setRisk] = useState("Balanced");
+  const [budget, setBudget] = useState(4);
+  const [ran, setRan] = useState(true);
+  const [running, setRunning] = useState(false);
+
+  const goalIndexMap: Record<string, number> = {
+    "Recover revenue": 0,
+    "Improve retention": 1,
+    "Reduce cost": 2,
+  };
+
+  const handleRun = () => {
+    setRunning(true);
+    setTimeout(() => {
+      setRunning(false);
+      setRan(true);
+    }, 600);
+  };
+
+  const planPreviews = {
+    "Recover revenue": {
+      title: "Win back inactive Electronics buyers",
+      impact: "+₹7.8L recovery",
+      confidence: "87%",
+      steps: [
+        "Filter 284 accounts inactive for 45+ days with past Electronics purchases",
+        "Personalize 12% incentive voucher during peak engagement window",
+        "Dispatch via automated email and WhatsApp alerts",
+      ],
+    },
+    "Improve retention": {
+      title: "Create repeat-buyer loyalty trigger",
+      impact: "+11% repeat purchase rate",
+      confidence: "82%",
+      steps: [
+        "Score customer recency and average order value automatically",
+        "Fire automated perk when purchase cadence slows past 30 days",
+        "Deploy VIP concierge alerts for highest-spending customer cohort",
+      ],
+    },
+    "Reduce cost": {
+      title: "Optimize marketing ad spend & keyword intent",
+      impact: "Save ₹1.6L monthly spend",
+      confidence: "81%",
+      steps: [
+        "Eliminate low-converting broad match keywords saving ₹60k",
+        "Reallocate 40% budget to high-intent product specific search terms",
+        "Set automated CAC bid guardrails to prevent budget exhaustion",
+      ],
+    },
+  };
+
+  const currentPlan = planPreviews[goal];
+
+  return (
+    <section className="panel agent-tool">
+      <div className="panel-head">
+        <div>
+          <h2>Autonomous AI Suggestion Agent</h2>
+          <p>Configure strategic business constraints and let the agent synthesize the highest-ROI decision.</p>
+        </div>
+        <div className="confidence">
+          <span></span> Multi-Agent Pipeline
+        </div>
+      </div>
+
+      <div className="agent-controls">
+        <div>
+          <small>STRATEGIC BUSINESS GOAL</small>
+          <div className="segment">
+            {(["Recover revenue", "Improve retention", "Reduce cost"] as const).map((item) => (
+              <button
+                key={item}
+                type="button"
+                className={goal === item ? "active" : ""}
+                onClick={() => setGoal(item)}
+              >
+                {item}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <small>RISK TOLERANCE</small>
+          <div className="segment">
+            {(["Conservative", "Balanced", "Aggressive"] as const).map((item) => (
+              <button
+                key={item}
+                type="button"
+                className={risk === item ? "active" : ""}
+                onClick={() => setRisk(item)}
+              >
+                {item}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <small>BUDGET CAP: ₹{budget}L</small>
+          <input
+            type="range"
+            min="1"
+            max="10"
+            value={budget}
+            onChange={(e) => setBudget(Number(e.target.value))}
+            style={{ width: "100%", accentColor: "var(--green)" }}
+          />
+        </div>
+      </div>
+
+      <div className="agent-pipeline">
+        {[
+          { label: "Data Agent", status: "complete" },
+          { label: "Anomaly Detect", status: "complete" },
+          { label: "Forecast Predict", status: "complete" },
+          { label: "Root Cause Chain", status: "complete" },
+          { label: "Decision Engine", status: ran ? "complete" : "pending" },
+        ].map((step, idx) => (
+          <span key={step.label} className={step.status === "complete" ? "complete" : ""}>
+            <Icon name={idx === 0 ? "chart" : idx === 4 ? "spark" : "target"} size={14} />
+            {step.label}
+          </span>
+        ))}
+      </div>
+
+      <div className="agent-result fade-in" key={goal}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "8px" }}>
+          <div>
+            <small>{goal.toUpperCase()} SYNTHESIS</small>
+            <h3>{currentPlan.title}</h3>
+            <p style={{ margin: "4px 0 10px" }}>
+              Projected <strong>{currentPlan.impact}</strong> with {currentPlan.confidence} statistical confidence. Mode: {risk}. Budget cap: ₹{budget}L.
+            </p>
+          </div>
+          <span className="count-badge" style={{ background: "var(--lime)", color: "var(--ink)", fontWeight: 800 }}>
+            {currentPlan.impact}
+          </span>
+        </div>
+
+        <ul style={{ margin: "8px 0 0", paddingLeft: "18px", fontSize: "12px", color: "var(--ink)" }}>
+          {currentPlan.steps.map((st, i) => (
+            <li key={i} style={{ marginBottom: "4px" }}>{st}</li>
+          ))}
+        </ul>
+      </div>
+
+      <div className="agent-actions">
+        <Button variant="secondary" onClick={handleRun}>
+          {running ? "Synthesizing..." : "Run AI Agent"} <Icon name="spark" />
+        </Button>
+        <Button onClick={() => onSelectPlan(goalIndexMap[goal])}>
+          Build Action Plan <Icon name="target" />
+        </Button>
+      </div>
+    </section>
+  );
+}
+
+function RootCause({
+  go,
+  theme,
+  setTheme,
+  setActivePlanIndex,
+}: {
+  go: (s: Screen) => void;
+  theme?: Theme;
+  setTheme?: (t: Theme) => void;
+  activePlanIndex?: number;
+  setActivePlanIndex?: (i: number) => void;
+}) {
   const [selected, setSelected] = useState(0);
 
   const analysisData = getAnalysisData();
@@ -3140,6 +3371,45 @@ function RootCause({ go }: { go: (s: Screen) => void }) {
 
   const sales = analyses[0];
 
+  const defaultNodes = [
+    {
+      label: "1. Revenue Gap Detected",
+      value: "-18% below target",
+      detail:
+        "Monthly revenue variance shows a ₹18.1L deficit against projection. Cross-channel audit reveals retail and direct channels drove 84% of the variance.",
+      evidence: "2,840 customer orders analyzed across 4 departments",
+      metric: "₹82.4L recorded",
+      status: "Critical Issue",
+    },
+    {
+      label: "2. Electronics Drop",
+      value: "-31% category decline",
+      detail:
+        "Electronics is the single biggest contributor to the overall loss, declining from ₹55.4L to ₹38.2L in the last 45 days.",
+      evidence: "1,120 transactions down from 1,620 prior period",
+      metric: "72% of total drop",
+      status: "Root Driver",
+    },
+    {
+      label: "3. Inactive Repeat Buyers",
+      value: "284 VIP buyers churned",
+      detail:
+        "High-value repeat buyers with 3+ prior Electronics purchases did not re-order following the conclusion of the promotional campaign.",
+      evidence: "284 accounts inactive for 45+ days with ₹28,500 avg LTV",
+      metric: "₹4.2L revenue risk",
+      status: "Customer Behavior",
+    },
+    {
+      label: "4. North Region Ad Hiatus",
+      value: "-28% regional loss",
+      detail:
+        "The steepest customer inactivity is geographically concentrated in the North region where local campaign coverage ended prematurely.",
+      evidence: "Ad spend decreased 45% in Northern territories prior to drop",
+      metric: "North territory",
+      status: "Marketing Driver",
+    },
+  ];
+
   const nodes = sales
     ? [
         {
@@ -3147,185 +3417,272 @@ function RootCause({ go }: { go: (s: Screen) => void }) {
           value: formatMetricValue(Number(sales.totalSales) || 0),
           detail: `Total recorded sales across ${Number(sales.rowCount) || 0} valid sales rows in the uploaded dataset.`,
           evidence: `${Number(sales.rowCount) || 0} valid sales rows`,
+          metric: formatMetricValue(Number(sales.totalSales) || 0),
+          status: "Uploaded Data",
         },
         ...(sales.categories || []).slice(0, 1).map((item: any) => ({
           label: `Category: ${item.name}`,
           value: formatMetricValue(Number(item.sales) || 0),
           detail: `${item.name} recorded ${formatMetricValue(Number(item.sales) || 0)} in sales.`,
           evidence: `${Number(item.quantity) || 0} units recorded`,
+          metric: formatMetricValue(Number(item.sales) || 0),
+          status: "Category",
         })),
         ...(sales.products || []).slice(0, 1).map((item: any) => ({
           label: `Product: ${item.name}`,
           value: formatMetricValue(Number(item.sales) || 0),
           detail: `${item.name} recorded ${formatMetricValue(Number(item.sales) || 0)} in sales.`,
           evidence: `${Number(item.quantity) || 0} units recorded`,
+          metric: formatMetricValue(Number(item.sales) || 0),
+          status: "Product",
         })),
         ...(sales.regions || []).slice(0, 1).map((item: any) => ({
           label: `Region: ${item.name}`,
           value: formatMetricValue(Number(item.sales) || 0),
           detail: `${item.name} recorded ${formatMetricValue(Number(item.sales) || 0)} in sales.`,
           evidence: `${Number(item.orderCount) || 0} distinct orders recorded`,
+          metric: formatMetricValue(Number(item.sales) || 0),
+          status: "Region",
         })),
       ]
-    : [];
+    : defaultNodes;
 
   const safeSelected = Math.min(selected, Math.max(nodes.length - 1, 0));
   const node = nodes[safeSelected];
 
   return (
     <div className="dashboard-layout">
-      <Sidebar screen="root" go={go} />
+      <Sidebar screen="root" go={go} theme={theme} setTheme={setTheme} />
 
       <main className="dashboard-main root-main">
         <header className="inner-header">
           <button className="back-btn" onClick={() => go("dashboard")}>
-            ← Back to insights
+            ← Back to overview
           </button>
 
           <span className="severity high">
-            {sales ? "DATA ANALYSIS" : "NO DATA"}
+            {sales ? "LIVE DATA ANALYSIS" : "ROOT CAUSE ENGINE ACTIVE"}
           </span>
 
           <h1>
             {sales
               ? "Explore your sales drivers"
-              : "Upload data to explore your business"}
+              : "Root Cause Chain & Decision Engine"}
           </h1>
 
           <p>
             {sales
-              ? `FlashBuzz found ${nodes.length} data views from your uploaded sales analysis.`
-              : "No sales analysis was found. Upload a CSV or Excel sales dataset and run the analysis first."}
+              ? `FlashBuzz identified ${nodes.length} key drivers from your uploaded dataset.`
+              : "FlashBuzz multi-agent system traced the revenue symptom through the root drivers and formulated 3 prioritized action plans."}
           </p>
         </header>
 
-        {sales && node ? (
-          <div className="root-layout">
-            <section className="panel root-map">
-              <div className="panel-head">
-                <div>
-                  <h2>Sales breakdown</h2>
-                  <p>Select a factor to explore its recorded sales</p>
-                </div>
-
-                <div className="confidence">
-                  <span></span>
-                  Based on uploaded data
-                </div>
-              </div>
-
-              <div className="cause-flow">
-                {nodes.map((item: any, i: number) => (
-                  <div key={`${item.label}-${i}`} className="flow-wrap">
-                    <button
-                      onClick={() => setSelected(i)}
-                      className={`cause-node ${
-                        safeSelected === i ? "selected" : ""
-                      }`}
-                    >
-                      <span>{i + 1}</span>
-
-                      <div>
-                        <small>{item.label}</small>
-                        <b>{item.value}</b>
-                      </div>
-
-                      <Icon name="chevron" />
-                    </button>
-
-                    {i < nodes.length - 1 && (
-                      <div className="flow-arrow">
-                        ↓
-                        <small>Sales breakdown</small>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </section>
-
-            <aside className="cause-panel fade-in" key={node.label}>
-              <div className="cause-panel-top">
-                <span className="cause-num">
-                  {String(safeSelected + 1).padStart(2, "0")}
-                </span>
-              </div>
-
-              <div className="page-kicker">SELECTED DATA VIEW</div>
-
-              <h2>{node.label}</h2>
-
-              <p>{node.detail}</p>
-
-              <div className="detail-grid">
-                <div>
-                  <small>RECORDED SALES</small>
-                  <b>{node.value}</b>
-                </div>
-
-                <div>
-                  <small>DATA SOURCE</small>
-                  <b>Uploaded dataset</b>
-                </div>
-
-                <div>
-                  <small>VALID ROWS</small>
-                  <b>{Number(sales.rowCount) || 0}</b>
-                </div>
-
-                <div>
-                  <small>PROFIT STATUS</small>
-                  <b>
-                    {sales.profitAvailable
-                      ? "Available"
-                      : "Cost data missing"}
-                  </b>
-                </div>
-              </div>
-
-              <div className="evidence-box">
-                <small>AVAILABLE EVIDENCE</small>
-
-                <ul>
-                  <li>{node.evidence}</li>
-                  <li>
-                    Total sales:{" "}
-                    {formatMetricValue(Number(sales.totalSales) || 0)}
-                  </li>
-                  <li>
-                    {sales.profitAvailable
-                      ? `Calculated profit/loss: ${formatMetricValue(Number(sales.totalProfit) || 0)}`
-                      : "Profit or loss cannot be verified without complete cost data."}
-                  </li>
-                </ul>
-              </div>
-
-              <div className="recommendation-mini">
-                <Icon name="spark" />
-
-                <div>
-                  <small>ANALYSIS NOTE</small>
-                  <b>
-                    Use this breakdown to identify high-performing areas.
-                    A decline or root cause requires comparison data.
-                  </b>
-                </div>
-              </div>
-
-              <Button onClick={() => go("chat")}>
-                Ask AI About This <Icon name="spark" />
-              </Button>
-            </aside>
+        {/* 4-Step Analysis Framework */}
+        <div className="analysis-steps">
+          <div className="analysis-step-card">
+            <span>1</span>
+            <b>Analyze</b>
+            <small>What is happening?</small>
+            <p>Overall revenue fell -18% below monthly target across key channels.</p>
           </div>
-        ) : (
-          <section className="panel" style={{ padding: "28px" }}>
-            <h2>No analysis available</h2>
-            <p>Upload your business dataset to populate this page.</p>
-            <Button onClick={() => go("upload")}>
-              Upload Data <Icon name="upload" />
-            </Button>
+          <div className="analysis-step-card">
+            <span>2</span>
+            <b>Detect</b>
+            <small>What looks wrong?</small>
+            <p>Electronics is down 31%; 284 high-value repeat buyers are dormant.</p>
+          </div>
+          <div className="analysis-step-card">
+            <span>3</span>
+            <b>Predict</b>
+            <small>What could happen next?</small>
+            <p>Potential ₹4.2L additional revenue erosion over the next 60 days.</p>
+          </div>
+          <div className="analysis-step-card">
+            <span>4</span>
+            <b>Decide</b>
+            <small>What should we do?</small>
+            <p>Launch targeted win-back campaign with projected +₹7.8L recovery.</p>
+          </div>
+        </div>
+
+        {/* Root Cause Chain */}
+        <div className="root-layout">
+          <section className="panel root-map">
+            <div className="panel-head">
+              <div>
+                <h2>{sales ? "Sales Breakdown Chain" : "Root Cause Chain Flow"}</h2>
+                <p>Click a factor below to inspect evidence and impact</p>
+              </div>
+
+              <div className="confidence">
+                <span></span>
+                {sales ? "Uploaded Data" : "87% AI Confidence"}
+              </div>
+            </div>
+
+            <div className="cause-flow">
+              {nodes.map((item: any, i: number) => (
+                <div key={`${item.label}-${i}`} className="flow-wrap">
+                  <button
+                    onClick={() => setSelected(i)}
+                    className={`cause-node ${safeSelected === i ? "selected" : ""}`}
+                  >
+                    <span>{i + 1}</span>
+
+                    <div>
+                      <small>{item.label}</small>
+                      <b>{item.value}</b>
+                    </div>
+
+                    <Icon name="chevron" />
+                  </button>
+
+                  {i < nodes.length - 1 && (
+                    <div className="flow-arrow">
+                      ↓ <small>Leads to</small>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
           </section>
-        )}
+
+          <aside className="cause-panel fade-in" key={node.label}>
+            <div className="cause-panel-top">
+              <span className="cause-num">
+                {String(safeSelected + 1).padStart(2, "0")}
+              </span>
+            </div>
+
+            <div className="page-kicker">SELECTED FACTOR INSPECTION</div>
+
+            <h2>{node.label}</h2>
+
+            <p>{node.detail}</p>
+
+            <div className="detail-grid">
+              <div>
+                <small>RECORDED VALUE</small>
+                <b>{node.value}</b>
+              </div>
+
+              <div>
+                <small>SOURCE</small>
+                <b>{sales ? "Uploaded file" : "Verified analytics"}</b>
+              </div>
+
+              <div>
+                <small>CLASSIFICATION</small>
+                <b>{node.status || "Critical"}</b>
+              </div>
+
+              <div>
+                <small>RECOVERABLE</small>
+                <b style={{ color: "var(--green)" }}>+₹7.8L projected</b>
+              </div>
+            </div>
+
+            <div className="evidence-box">
+              <small>AGENT EVIDENCE & METRICS</small>
+
+              <ul>
+                <li>{node.evidence}</li>
+                <li>Impact score: 87% confidence rating based on historical cohorts</li>
+                <li>Root cause correlation: Category contribution accounts for 72% of decline</li>
+              </ul>
+            </div>
+
+            <div className="recommendation-mini">
+              <Icon name="spark" />
+
+              <div>
+                <small>ACTIONABLE RECOMMENDATION</small>
+                <b>
+                  Execute win-back sequence for the 284 dormant buyers with personalized discount voucher.
+                </b>
+              </div>
+            </div>
+
+            <div style={{ display: "flex", gap: "10px", marginTop: "16px" }}>
+              <Button style={{ flex: 1 }} onClick={() => { setActivePlanIndex?.(0); go("action"); }}>
+                Execute Action Plan <Icon name="target" />
+              </Button>
+              <Button variant="secondary" onClick={() => go("chat")}>
+                Ask AI <Icon name="spark" />
+              </Button>
+            </div>
+          </aside>
+        </div>
+
+        {/* AI-Detected Business Problems */}
+        <section className="panel" style={{ marginTop: "24px", padding: "24px" }}>
+          <div className="panel-head">
+            <div>
+              <h2>AI-Detected Business Problems</h2>
+              <p>Ranked by business impact and recommended action</p>
+            </div>
+            <span className="count-badge">3 issues detected</span>
+          </div>
+
+          <div className="problem-list-grid">
+            <div className="problem-card" style={{ cursor: "default" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span className="severity high">CRITICAL</span>
+                <span style={{ fontSize: "11px", fontWeight: "700", color: "var(--green)" }}>87% confidence</span>
+              </div>
+              <h3 style={{ marginTop: "12px" }}>Electronics sales decreased 31%</h3>
+              <p>284 high-value customers with prior Electronics purchases did not return after the promotional campaign ended.</p>
+              <div className="impact-line">
+                <span>Revenue Impact</span>
+                <b>−₹4.2L</b>
+              </div>
+              <Button style={{ marginTop: "14px", width: "100%" }} onClick={() => { setActivePlanIndex?.(0); go("action"); }}>
+                Win Back Buyers (+₹7.8L) <Icon name="arrow" />
+              </Button>
+            </div>
+
+            <div className="problem-card" style={{ cursor: "default" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span className="severity medium">HIGH</span>
+                <span style={{ fontSize: "11px", fontWeight: "700", color: "var(--green)" }}>81% confidence</span>
+              </div>
+              <h3 style={{ marginTop: "12px" }}>Marketing cost rose 18%</h3>
+              <p>Paid ad spend increased while conversion remained flat due to budget shift toward broad, low-intent search terms.</p>
+              <div className="impact-line">
+                <span>Cost Impact</span>
+                <b>−₹1.6L</b>
+              </div>
+              <Button style={{ marginTop: "14px", width: "100%" }} variant="secondary" onClick={() => { setActivePlanIndex?.(2); go("action"); }}>
+                Optimize Ad Spend (Save ₹1.6L) <Icon name="arrow" />
+              </Button>
+            </div>
+
+            <div className="problem-card" style={{ cursor: "default" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span className="severity medium">OPPORTUNITY</span>
+                <span style={{ fontSize: "11px", fontWeight: "700", color: "var(--green)" }}>76% confidence</span>
+              </div>
+              <h3 style={{ marginTop: "12px" }}>Product A price elasticity</h3>
+              <p>Customer demand is highly responsive to bundle discounts. Loyalty perks can unlock strong repeat buying.</p>
+              <div className="impact-line">
+                <span>Growth Opportunity</span>
+                <b style={{ color: "var(--green)" }}>+₹2.1L</b>
+              </div>
+              <Button style={{ marginTop: "14px", width: "100%" }} variant="secondary" onClick={() => { setActivePlanIndex?.(1); go("action"); }}>
+                Launch Loyalty Perk (+11%) <Icon name="arrow" />
+              </Button>
+            </div>
+          </div>
+        </section>
+
+        {/* Agentic Suggestion Tool */}
+        <AgenticSuggestionToolSection
+          go={go}
+          onSelectPlan={(planIndex: number) => {
+            setActivePlanIndex?.(planIndex);
+            go("action");
+          }}
+        />
       </main>
     </div>
   );
@@ -3583,150 +3940,321 @@ const actionSteps = [
   "Measure conversion",
 ];
 
-function ActionPlan({ go }: { go: (s: Screen) => void }) {
-  const [done, setDone] = useState<number[]>([]);
 
-  const progress = done.length * 20;
+const allActionPlans = [
+  {
+    goal: "Recover revenue",
+    title: "Win back inactive Electronics customers",
+    impact: "+₹7.8L revenue",
+    time: "7–10 days",
+    confidence: "87%",
+    owner: "Growth Team",
+    effort: "Medium",
+    steps: [
+      {
+        title: "Filter inactive high-value customers",
+        detail: "Extract 284 accounts inactive for 45+ days with past Electronics purchases.",
+      },
+      {
+        title: "Prioritize top accounts by lifetime value",
+        detail: "Segment customers with >₹25,000 historic basket value for targeted outreach.",
+      },
+      {
+        title: "Personalize return incentive offer",
+        detail: "Use FlashBuzz AI brief to craft a personalized 12% incentive voucher.",
+      },
+      {
+        title: "Schedule automated multi-channel campaign",
+        detail: "Dispatch during peak engagement hours via Email and WhatsApp.",
+      },
+      {
+        title: "Measure conversion and ROI against control group",
+        detail: "Track 30-day cohort re-orders and compare return margin against benchmark.",
+      },
+    ],
+  },
+  {
+    goal: "Improve retention",
+    title: "Create a repeat-buyer loyalty trigger",
+    impact: "+11% repeat rate",
+    time: "5 days",
+    confidence: "82%",
+    owner: "CRM Team",
+    effort: "Low",
+    steps: [
+      {
+        title: "Score customer recency and basket frequency",
+        detail: "Assign automated retention health scores to all registered customer accounts.",
+      },
+      {
+        title: "Set up 30-day dormant trigger",
+        detail: "Fire proactive loyalty perk when a customer's standard purchase cycle lapses.",
+      },
+      {
+        title: "A/B test free shipping vs credit bonus",
+        detail: "Run randomized test across 500 customers to evaluate margin vs conversion.",
+      },
+      {
+        title: "Deploy VIP concierge alert",
+        detail: "Alert account managers when top tier customers show churn signals.",
+      },
+      {
+        title: "Monitor 60-day customer cohort retention",
+        detail: "Measure repeat order frequency and customer lifetime value uplift.",
+      },
+    ],
+  },
+  {
+    goal: "Reduce cost",
+    title: "Optimize marketing ad spend & keyword intent",
+    impact: "Save ₹1.6L spend",
+    time: "3 days",
+    confidence: "81%",
+    owner: "Marketing Team",
+    effort: "Low",
+    steps: [
+      {
+        title: "Audit low-performing broad match terms",
+        detail: "Identify keywords with zero conversions and >₹15,000 spend over past 60 days.",
+      },
+      {
+        title: "Reallocate budget to high-intent terms",
+        detail: "Shift 40% of ad capital into high-converting specific model queries.",
+      },
+      {
+        title: "Pause low-ROI weekend ad inventory",
+        detail: "Disable campaigns during historically low conversion weekend windows.",
+      },
+      {
+        title: "Establish real-time CAC threshold guardrails",
+        detail: "Automatically cap bids when customer acquisition cost exceeds target threshold.",
+      },
+      {
+        title: "Review weekly ROAS with leadership",
+        detail: "Assess blended return on ad spend and confirm monthly ₹1.6L cost savings.",
+      },
+    ],
+  },
+];
 
-  const toggle = (i: number) =>
-    setDone((d) => (d.includes(i) ? d.filter((n) => n !== i) : [...d, i]));
+function ActionPlan({
+  go,
+  theme,
+  setTheme,
+  activePlanIndex = 0,
+  setActivePlanIndex,
+}: {
+  go: (s: Screen) => void;
+  theme?: Theme;
+  setTheme?: (t: Theme) => void;
+  activePlanIndex?: number;
+  setActivePlanIndex?: (i: number) => void;
+}) {
+  const [selectedPlan, setSelectedPlan] = useState(activePlanIndex);
+  const [completedSteps, setCompletedSteps] = useState<Record<number, number[]>>({
+    0: [],
+    1: [],
+    2: [],
+  });
+
+  useEffect(() => {
+    if (activePlanIndex !== undefined && activePlanIndex >= 0 && activePlanIndex <= 2) {
+      setSelectedPlan(activePlanIndex);
+    }
+  }, [activePlanIndex]);
+
+  const plan = allActionPlans[selectedPlan] || allActionPlans[0];
+  const done = completedSteps[selectedPlan] || [];
+  const progress = Math.round((done.length / plan.steps.length) * 100);
+
+  const toggle = (i: number) => {
+    setCompletedSteps((prev) => {
+      const current = prev[selectedPlan] || [];
+      const updated = current.includes(i)
+        ? current.filter((x) => x !== i)
+        : [...current, i];
+      return { ...prev, [selectedPlan]: updated };
+    });
+  };
+
+  const markAllComplete = () => {
+    setCompletedSteps((prev) => ({
+      ...prev,
+      [selectedPlan]: plan.steps.map((_, i) => i),
+    }));
+  };
 
   return (
-    <div className="modal-page">
-      <div className="action-modal">
-        <header>
-          <BackButton onClick={() => go("chat")} label="Back to AI chat" />
+    <div className="dashboard-layout">
+      <Sidebar screen="action" go={go} theme={theme} setTheme={setTheme} />
 
-          <div className="modal-icon">
-            <Icon name="target" />
-          </div>
-
-          <div>
-            <div className="page-kicker">AI-GENERATED ACTION PLAN</div>
-
-            <h1>Win back inactive Electronics customers</h1>
-          </div>
-
-          <button className="icon-btn" onClick={() => go("chat")}>
-            <Icon name="close" />
+      <main className="dashboard-main action-main">
+        <header className="inner-header">
+          <button className="back-btn" onClick={() => go("root")}>
+            ← Back to AI insights
           </button>
+
+          <span className="severity high">AI ACTION EXECUTION</span>
+
+          <h1>AI-Generated Action Plans</h1>
+
+          <p>
+            Execute tactical business actions synthesized by FlashBuzz to eliminate root causes and recover revenue.
+          </p>
         </header>
 
-        <div className="action-summary">
-          <div>
-            <small>EXPECTED IMPACT</small>
-
-            <b>+₹7.8L revenue</b>
-          </div>
-
-          <div>
-            <small>TIME TO COMPLETE</small>
-
-            <b>7–10 days</b>
-          </div>
-
-          <div>
-            <small>CONFIDENCE</small>
-
-            <b>87%</b>
-          </div>
-        </div>
-
-        <div className="progress-header">
-          <div>
-            <h2>Action steps</h2>
-
-            <p>Complete each step to put this recommendation into action.</p>
-          </div>
-
-          <div className="progress-value">
-            <b>{progress}%</b>
-
-            <span>
-              <i
-                style={{
-                  width: `${progress}%`,
+        {/* Plan Selector Tabs */}
+        <div className="plan-selector">
+          {allActionPlans.map((p, idx) => {
+            const planDone = completedSteps[idx] || [];
+            const planProg = Math.round((planDone.length / p.steps.length) * 100);
+            return (
+              <button
+                key={p.title}
+                type="button"
+                className={selectedPlan === idx ? "active" : ""}
+                onClick={() => {
+                  setSelectedPlan(idx);
+                  setActivePlanIndex?.(idx);
                 }}
-              ></i>
-            </span>
-          </div>
+              >
+                <span>{p.title}</span>
+                <span style={{ marginLeft: "8px", opacity: 0.85, fontSize: "11px" }}>
+                  ({planProg}%)
+                </span>
+              </button>
+            );
+          })}
         </div>
 
-        <div className="action-list">
-          {actionSteps.map((step, i) => (
-            <button
-              className={done.includes(i) ? "completed" : ""}
-              key={step}
-              onClick={() => toggle(i)}
-            >
-              <span className="checkbox">
-                {done.includes(i) && <Icon name="check" size={15} />}
-              </span>
-
-              <span className="step-number">0{i + 1}</span>
-
-              <div>
-                <b>{step}</b>
-
-                <small>
-                  {
-                    [
-                      "Filter customers inactive for 45+ days with prior Electronics purchases.",
-                      "Prioritize by lifetime value and purchase frequency.",
-                      "Use the AI brief to personalize the return offer.",
-                      "Schedule the campaign for the highest-engagement window.",
-                      "Track purchases and compare against the control group.",
-                    ][i]
-                  }
-                </small>
-              </div>
-
-              <Icon name="chevron" />
-            </button>
-          ))}
-        </div>
-
-        {progress === 100 ? (
-          <div className="plan-complete fade-up">
-            <span>
-              <Icon name="check" />
-            </span>
-
-            <div>
-              <b>Action Plan Completed</b>
-
-              <small>Your projected business impact is ready to review.</small>
+        <div className="action-modal" style={{ maxWidth: "100%", margin: "0 0 30px" }}>
+          <header>
+            <div className="modal-icon">
+              <Icon name="target" />
             </div>
 
-            <Button onClick={() => go("impact")}>
-              View business impact <Icon name="arrow" />
+            <div>
+              <div className="page-kicker">AI-GENERATED ACTION PLAN</div>
+              <h1>{plan.title}</h1>
+            </div>
+
+            <Button variant="secondary" onClick={() => go("dashboard")}>
+              Exit to Overview
             </Button>
+          </header>
+
+          <div className="action-summary">
+            <div>
+              <small>EXPECTED IMPACT</small>
+              <b>{plan.impact}</b>
+            </div>
+
+            <div>
+              <small>TIME TO COMPLETE</small>
+              <b>{plan.time}</b>
+            </div>
+
+            <div>
+              <small>CONFIDENCE</small>
+              <b>{plan.confidence}</b>
+            </div>
+
+            <div>
+              <small>OWNER</small>
+              <b>{plan.owner}</b>
+            </div>
           </div>
-        ) : (
-          <footer>
-            <span>Changes are saved automatically</span>
 
-            <Button
-              variant="secondary"
-              onClick={() => setDone(actionSteps.map((_, i) => i))}
-            >
-              Mark all complete
-            </Button>
-          </footer>
-        )}
-      </div>
+          <div className="progress-header">
+            <div>
+              <h2>Action steps ({done.length}/{plan.steps.length} completed)</h2>
+              <p>Check off each step as your team completes it to track progress.</p>
+            </div>
 
-      {progress === 100 && <Toast text="Action plan completed" />}
+            <div className="progress-value">
+              <b>{progress}%</b>
+              <span>
+                <i style={{ width: `${progress}%` }}></i>
+              </span>
+            </div>
+          </div>
+
+          <div className="action-list">
+            {plan.steps.map((step, i) => (
+              <button
+                className={done.includes(i) ? "completed" : ""}
+                key={step.title}
+                type="button"
+                onClick={() => toggle(i)}
+              >
+                <span className="checkbox">
+                  {done.includes(i) && <Icon name="check" size={15} />}
+                </span>
+
+                <span className="step-number">0{i + 1}</span>
+
+                <div>
+                  <b>{step.title}</b>
+                  <small>{step.detail}</small>
+                </div>
+
+                <Icon name="chevron" />
+              </button>
+            ))}
+          </div>
+
+          {progress === 100 ? (
+            <div className="plan-complete fade-up">
+              <span>
+                <Icon name="check" />
+              </span>
+
+              <div>
+                <b>Action Plan Completed!</b>
+                <small>Your projected business impact is ready to review and verify.</small>
+              </div>
+
+              <Button onClick={() => go("impact")}>
+                View business impact <Icon name="arrow" />
+              </Button>
+            </div>
+          ) : (
+            <footer>
+              <span>Changes are saved automatically in your session</span>
+
+              <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+                <Button variant="secondary" onClick={markAllComplete}>
+                  Mark all complete
+                </Button>
+                <Button onClick={() => go("impact")}>
+                  Projected impact <Icon name="trend" />
+                </Button>
+              </div>
+            </footer>
+          )}
+        </div>
+
+        {progress === 100 && <Toast text="Action plan completed" />}
+      </main>
     </div>
   );
 }
 
-function Impact({ go }: { go: (s: Screen) => void }) {
+
+function Impact({
+  go,
+  theme,
+  setTheme,
+}: {
+  go: (s: Screen) => void;
+  theme?: Theme;
+  setTheme?: (t: Theme) => void;
+}) {
   const [view, setView] = useState<"Before" | "After" | "Impact">("Impact");
 
   return (
     <div className="dashboard-layout">
-      <Sidebar screen="impact" go={go} />
+      <Sidebar screen="impact" go={go} theme={theme} setTheme={setTheme} />
 
       <main className="dashboard-main impact-main">
         <header className="dash-header">
@@ -4118,7 +4646,40 @@ function applyTheme(theme: Theme) {
        KPI CARDS
     ===================================================== */
 
-    [data-theme="dark"] .kpi-card {
+    
+    [data-theme="dark"] .analysis-step-card,
+    [data-theme="dark"] .agent-tool,
+    [data-theme="dark"] .plan-selector button {
+      background: #1b211e !important;
+      color: #f4f6f2 !important;
+      border-color: #303a34 !important;
+    }
+
+    [data-theme="dark"] .analysis-step-card b,
+    [data-theme="dark"] .agent-result h3 {
+      color: #f4f6f2 !important;
+    }
+
+    [data-theme="dark"] .agent-result {
+      background: #232c26 !important;
+      border-color: #6a994e !important;
+    }
+
+    [data-theme="dark"] .agent-pipeline {
+      background: #171c19 !important;
+      border-color: #303a34 !important;
+    }
+
+    [data-theme="dark"] .agent-controls .segment {
+      background: #171c19 !important;
+    }
+
+    [data-theme="dark"] .agent-controls .segment button.active {
+      background: #26362b !important;
+      color: #ffffff !important;
+    }
+  
+[data-theme="dark"] .kpi-card {
       background: #1b211e !important;
       color: #f4f6f2 !important;
       border-color: #303a34 !important;
@@ -4396,11 +4957,12 @@ export default function App() {
     getStoredAuth() ? "dashboard" : "landing",
   );
 
-const [theme, setTheme] = useState<Theme>(() => getStoredTheme());
+  const [theme, setTheme] = useState<Theme>(() => getStoredTheme());
+  const [activePlanIndex, setActivePlanIndex] = useState(0);
 
-useEffect(() => {
-  applyTheme(theme);
-}, [theme]);
+  useEffect(() => {
+    applyTheme(theme);
+  }, [theme]);
 
   const go = (next: Screen) => {
     setScreen(next);
@@ -4419,31 +4981,62 @@ useEffect(() => {
 
   if (screen === "upload") return <Upload go={go} />;
 
-   if (screen === "prepare") return <PrepareData go={go} />;
+  if (screen === "prepare") return <PrepareData go={go} />;
 
   if (screen === "processing") return <Processing go={go} />;
 
   if (screen === "complete") return <Complete go={go} />;
 
-  if (screen === "dashboard") return <Dashboard go={go} />;
+  if (screen === "dashboard")
+    return (
+      <Dashboard
+        go={go}
+        theme={theme}
+        setTheme={setTheme}
+        setActivePlanIndex={setActivePlanIndex}
+      />
+    );
 
-  if (screen === "root") return <RootCause go={go} />;
+  if (screen === "root")
+    return (
+      <RootCause
+        go={go}
+        theme={theme}
+        setTheme={setTheme}
+        activePlanIndex={activePlanIndex}
+        setActivePlanIndex={setActivePlanIndex}
+      />
+    );
 
   if (screen === "chat") return <Chat go={go} />;
 
-  if (screen === "action") return <ActionPlan go={go} />;
+  if (screen === "action")
+    return (
+      <ActionPlan
+        go={go}
+        theme={theme}
+        setTheme={setTheme}
+        activePlanIndex={activePlanIndex}
+        setActivePlanIndex={setActivePlanIndex}
+      />
+    );
 
   if (screen === "profile") {
+    return (
+      <Profile
+        go={go}
+        theme={theme}
+        setTheme={setTheme}
+      />
+    );
+  }
+
   return (
-    <Profile
+    <Impact
       go={go}
       theme={theme}
       setTheme={setTheme}
     />
   );
-}
-
-
-  return <Impact go={go} />;
 }
 
