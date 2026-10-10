@@ -328,6 +328,15 @@ function normalizeRows(inputRows) {
       row[column] = actualHeader ? source[actualHeader] : null;
     }
 
+    if (!row.Region || !String(row.Region).trim()) {
+      for (const fallback of ["country", "COUNTRY", "city", "CITY", "territory", "TERRITORY", "state", "STATE"]) {
+        if (source[fallback]) {
+          row.Region = source[fallback];
+          break;
+        }
+      }
+    }
+
     for (const column of [
       "Quantity",
       "Unit_Price",
@@ -336,6 +345,14 @@ function normalizeRows(inputRows) {
       "Cost_Per_Unit"
     ]) {
       row[column] = cleanNumber(row[column]);
+    }
+
+    if (!Number.isFinite(row.Quantity) && Number.isFinite(row.Sales_Amount)) {
+      row.Quantity = 1;
+    }
+
+    if (!Number.isFinite(row.Unit_Price) && Number.isFinite(row.Sales_Amount) && Number.isFinite(row.Quantity) && row.Quantity > 0) {
+      row.Unit_Price = round(row.Sales_Amount / row.Quantity);
     }
 
     return row;
@@ -408,6 +425,10 @@ function analyzeSales(rows) {
       Number.isFinite(row.Sales_Amount) &&
       Number.isFinite(row.Quantity)
   );
+
+  if (validRows.length === 0) {
+    return null;
+  }
 
   const totalSales = sum(validRows.map((row) => row.Sales_Amount));
   const totalQuantity = sum(validRows.map((row) => row.Quantity));
@@ -502,6 +523,14 @@ function analyzeSales(rows) {
       type: "product",
       title: "Top-selling product",
       message: `${products[0].name} generated ${products[0].sales.toLocaleString("en-IN")} in sales.`
+    });
+  }
+
+  if (categories.length) {
+    insights.push({
+      type: "product",
+      title: "Top category",
+      message: `${categories[0].name} generated ${categories[0].sales.toLocaleString("en-IN")} in sales.`
     });
   }
 
@@ -813,9 +842,19 @@ for (const sheetName of workbook.SheetNames) {
         defval: null
     });
 
+    if (!rows || rows.length === 0) {
+        continue;
+    }
+
     const inspection = inspectRawDataset(rows);
     const cleaningResult = cleanDataset(rows);
     const analysis = analyzeDataset(cleaningResult.rows);
+
+    const { rows: normalizedSalesRows } = normalizeRows(cleaningResult.rows);
+    const salesAnalysis = analyzeSales(normalizedSalesRows);
+    if (salesAnalysis && salesAnalysis.rowCount > 0) {
+        analysis.salesAnalysis = salesAnalysis;
+    }
 
     sheets.push({
         name: sheetName,
@@ -827,7 +866,11 @@ for (const sheetName of workbook.SheetNames) {
     });
 }
 
-
+        if (sheets.length === 0) {
+          return res.status(400).json({
+            message: `The file "${file.originalname}" does not contain any readable data rows.`
+          });
+        }
 
         results.push({
           originalName: file.originalname,

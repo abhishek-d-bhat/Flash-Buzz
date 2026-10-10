@@ -2264,22 +2264,27 @@ function Complete({ go }: { go: (s: Screen) => void }) {
       (file: any) => file?.sheets || [],
     ) || [];
 
-  const analyses = sheets
+  const salesAnalyses = sheets
     .map((sheet: any) => sheet?.analysis?.salesAnalysis)
     .filter(Boolean);
 
-  const insights = analyses.flatMap(
+  const analyses = salesAnalyses.length > 0
+    ? salesAnalyses
+    : sheets.map((sheet: any) => sheet?.analysis).filter(Boolean);
+
+  const insights = (salesAnalyses.length > 0 ? salesAnalyses : analyses).flatMap(
     (analysis: any) => analysis.insights || [],
   );
 
   const criticalProblems = insights.filter(
-    (insight: any) => insight.type === "loss",
+    (insight: any) => insight.type === "loss" || insight.severity === "high" || insight.severity === "critical",
   ).length;
 
   const growthInsights = insights.filter(
     (insight: any) =>
       insight.type === "product" ||
-      insight.type === "region",
+      insight.type === "region" ||
+      insight.type === "opportunity",
   ).length;
 
   const totalInsights = insights.length;
@@ -2300,7 +2305,7 @@ function Complete({ go }: { go: (s: Screen) => void }) {
     })}`;
   };
 
-  const totalSales = analyses.reduce(
+  const totalSales = salesAnalyses.reduce(
     (total: number, analysis: any) =>
       total + (Number(analysis.totalSales) || 0),
     0,
@@ -2358,9 +2363,11 @@ function Complete({ go }: { go: (s: Screen) => void }) {
           <div>
             <Icon name="trend" />
             <b>
-              {hasAnalysis
+              {hasAnalysis && salesAnalyses.length > 0
                 ? formatCurrency(totalSales)
-                : "Unavailable"}
+                : hasAnalysis
+                  ? `${sheets[0]?.analysis?.rowCount || 0} rows`
+                  : "Unavailable"}
             </b>
             <small>Total sales analyzed</small>
           </div>
@@ -3157,14 +3164,25 @@ const getAnalysisSummary = () => {
   const sheets =
     data?.files?.flatMap((file: any) => file?.sheets || []) || [];
 
-  // Use the generic KPIs generated from the uploaded dataset.
   const sheet = sheets.find(
-    (item: any) => Array.isArray(item?.analysis?.kpis)
+    (item: any) => item?.analysis
   );
 
-  const kpis = sheet?.analysis?.kpis || [];
+  const salesKpis = (sheet?.analysis?.salesAnalysis?.kpis || []).filter(
+    (kpi: any) => kpi.value !== null && kpi.value !== undefined && kpi.type !== "unavailable"
+  );
+
+  const kpis = salesKpis.length > 0 ? salesKpis : (sheet?.analysis?.kpis || []);
 
   const iconMap: Record<string, IconName> = {
+    total_sales: "wallet",
+    gross_sales: "chart",
+    total_discount: "alert",
+    total_quantity: "target",
+    total_orders: "file",
+    average_order_value: "trend",
+    profit: "wallet",
+    profit_margin: "trend",
     total_records: "users",
     total_columns: "chart",
     duplicate_records: "alert",
@@ -3182,12 +3200,15 @@ const getAnalysisSummary = () => {
       rawValue !== undefined &&
       !(typeof rawValue === "number" && !Number.isFinite(rawValue))
     ) {
-      value =
-        typeof rawValue === "number"
-          ? rawValue.toLocaleString("en-IN", {
-              maximumFractionDigits: 2,
-            })
-          : String(rawValue);
+      if (kpi.type === "currency" && typeof rawValue === "number") {
+        value = formatMetricValue(rawValue);
+      } else if (typeof rawValue === "number") {
+        value = rawValue.toLocaleString("en-IN", {
+          maximumFractionDigits: 2,
+        });
+      } else {
+        value = String(rawValue);
+      }
     }
 
     return {
@@ -3523,13 +3544,13 @@ function Dashboard({
               </p>
 
               <div className="impact-line">
-                <span>Potential impact</span>
+                <span>Estimated Impact</span>
 
                 <b>{metrics.projectedImpactFormatted}</b>
               </div>
 
               <div className="open-row">
-                View root cause <Icon name="arrow" size={15} />
+                View sales breakdown <Icon name="arrow" size={15} />
               </div>
             </button>
 
@@ -3537,9 +3558,9 @@ function Dashboard({
               <span className="severity medium">MEDIUM</span>
 
               <div>
-                <b>Marketing cost rose 18%</b>
+                <b>{activeInsights[1]?.title || `${metrics.dominantRegion} channel optimization`}</b>
 
-                <small>Conversion remained flat</small>
+                <small>{activeInsights[1]?.message || `Explore region details and reclaim ${metrics.actionRecoveryFormatted}`}</small>
               </div>
 
               <Icon name="chevron" />
