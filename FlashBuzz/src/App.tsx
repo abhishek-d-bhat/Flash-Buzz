@@ -3386,12 +3386,12 @@ function Dashboard({
         </section>
 
         <section className="kpi-grid">
-    {kpis.map((k: any) => (
-    <button
-      className="kpi-card"
-      key={k.title}
-      onClick={() => go("root")}
-    >
+          {kpis.map((k: any, idx: number) => (
+            <button
+              className="kpi-card"
+              key={`${k.title}-${idx}`}
+              onClick={() => go("root")}
+            >
               <span className="kpi-icon">
                 <Icon name={k.icon} />
               </span>
