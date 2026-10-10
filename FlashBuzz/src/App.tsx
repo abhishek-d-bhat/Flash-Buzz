@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
+const API_URL = (import.meta.env.VITE_API_URL || "http://localhost:5000").replace(/\/+$/, "");
+
 type Screen =
   | "landing"
   | "login"
@@ -684,7 +686,7 @@ function Login({ go }: { go: (s: Screen) => void }) {
     setLoading(true);
 
     try {
-      const response = await fetch("http://localhost:5000/api/auth/login", {
+      const response = await fetch(`${API_URL}/api/auth/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -935,7 +937,7 @@ function Register({ go }: { go: (s: Screen) => void }) {
     setLoading(true);
 
     try {
-      const response = await fetch("http://localhost:5000/api/auth/register", {
+      const response = await fetch(`${API_URL}/api/auth/register`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -1373,8 +1375,8 @@ const analyzeFiles = async () => {
       const formData = new FormData();
       files.forEach((file) => formData.append("files", file));
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 1800);
-      const response = await fetch("http://localhost:5000/api/analysis/upload", {
+      const timeoutId = setTimeout(() => controller.abort(), 60000);
+      const response = await fetch(`${API_URL}/api/analysis/upload`, {
         method: "POST",
         body: formData,
         signal: controller.signal,
@@ -1382,9 +1384,15 @@ const analyzeFiles = async () => {
       clearTimeout(timeoutId);
       if (response.ok) {
         parsedData = await response.json();
+      } else {
+        const errData = await response.json().catch(() => null);
+        if (errData?.message) {
+          console.warn("Backend analysis notice:", errData.message);
+        }
       }
-    } catch {
-      // Backend offline, parse client-side
+    } catch (uploadErr) {
+      // Backend offline or upload timed out, fall back to client-side parser
+      console.warn("Backend upload error or timeout, falling back to client-side parser:", uploadErr);
     }
 
     if (!parsedData) {
@@ -2459,7 +2467,7 @@ function Profile({
 
     try {
       const response = await fetch(
-        "http://localhost:5000/api/auth/profile",
+        `${API_URL}/api/auth/profile`,
         {
           method: "PUT",
           headers: {
